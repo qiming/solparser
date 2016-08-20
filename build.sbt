@@ -12,8 +12,10 @@ resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/release
 
 resolvers += "Maven Repository" at "http://mvnrepository.com/artifact/"
 
-//resolvers += "scalaz" at "git://github.com/scalaz/scalaz.git"
+resolvers += "luzhuomi github repo" at "http://github.com/luzhuomi/mavenrepo/raw/master"
 
-libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.5"
+//resolvers += "scalaz" at "http://github.com/scalaz/mavenrepo/raw/master"
 
-libraryDependencies += "com.github.luzhuomi" %% "scalazparsec" % "0.1.0-SNAPSHOT"
+//libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.5"
+
+libraryDependencies += "com.github.luzhuomi" %% "scalazparsec" % "0.1.2"
