@@ -3,12 +3,13 @@ package com.cloakapps
 object SolidityAST
 {
   // (ImportDirective | ContractDefinition)*
-  sealed trait SourceUnit
+  //  sealed trait SourceUnit
+  type SourceUnit = List[Either[ImportDirective,ContractDefinition]]
 
   // 'import' StringLiteral ('as' Identifier)? ';'
   // | 'import' ('*' | Identifier) ('as' Identifier)? 'from' StringLiteral ';'
   // | 'import' '{' Identifier ('as' Identifier)? ( ',' Identifier ('as' Identifier)? )* '}' 'from' StringLiteral ';'
-  sealed trait ImportDirective extends SourceUnit
+  sealed trait ImportDirective // extends SourceUnit
   case class SimpleImport(module: StringLiteral, as: Option[Identifier]) extends ImportDirective
   case class FromImport(wildcardOrModule: Option[StringLiteral], as: Option[Identifier], from: StringLiteral) extends ImportDirective
   case class MultipleImport(modules: List[(Identifier, Option[Identifier])], from: StringLiteral) extends ImportDirective
@@ -16,9 +17,9 @@ object SolidityAST
   // ( 'contract' | 'library' ) Identifier
   // ( 'is' InheritanceSpecifier (',' InheritanceSpecifier )* )?
   // '{' ContractPart* '}'
-  sealed trait ContractDefinition extends SourceUnit
-	case class ContractDef(id: Identifier, inheritSpecs:List[InheritanceSpecifier], parts:List[ContractPart]) extends ContractDefinition
-	case class LibraryDef(id: Identifier, inheritSpecs:List[InheritanceSpecifier], parts:List[ContractPart]) extends ContractDefinition
+  sealed trait ContractDefinition // extends SourceUnit
+  case class ContractDef(id: Identifier, inheritSpecs:List[InheritanceSpecifier], parts:List[ContractPart]) extends ContractDefinition
+  case class LibraryDef(id: Identifier, inheritSpecs:List[InheritanceSpecifier], parts:List[ContractPart]) extends ContractDefinition
 	// the above is like in ML
 	// datatype contractDefinition = 
 	//     contractDef of string * inheritanceSpecifier list * contractPart list  
@@ -35,32 +36,32 @@ object SolidityAST
   // 'using' Identifier 'for' ('*' | TypeName) ';'
   case class UsingForDeclaration(id: Identifier, wildcardOrName: Option[TypeName]) extends ContractPart
   // 'struct' Identifier '{' ( VariableDeclaration ';' (VariableDeclaration ';')* )? '}'
-	case class StructDefinition(id:Identifier, varDecls:List[VariableDeclaration]) extends ContractPart
+  case class StructDefinition(id:Identifier, varDecls:List[VariableDeclaration]) extends ContractPart
   // 'modifier' Identifier ParameterList? Block
   case class ModifierDefinition(id:Identifier, paras:List[Parameter],block:Block) extends ContractPart // To be continued
   // 'function' Identifier? ParameterList
   // ( FunctionCall | Identifier | 'constant' | 'external' | 'public' | 'internal' | 'private' )*
   // ( 'returns' ParameterList )? Block
-	case class FunctionDefinition(id:Option[Identifier], paras:List[Parameter],funcMod:List[FunctionModifier], retParas:List[Parameter], block:Block) extends ContractPart
+  case class FunctionDefinition(id:Option[Identifier], paras:List[Parameter],funcMod:List[FunctionModifier], retParas:List[Parameter], block:Block) extends ContractPart
 
   // 'event' Identifier IndexedParameterList 'anonymous'? ';'
   case class EventDefinition(id: Identifier, params: List[Parameter], anonymous: Boolean) extends ContractPart
 
   // 'enum' Identifier '{' EnumValue? (',' EnumValue)* '}'
   case class EnumDefinition(id: Identifier, vals:List[EnumValue]) extends ContractPart
-	type EnumValue = Identifier
+  type EnumValue = Identifier
 
   sealed trait AccessModifier
-	case object PublicAM extends AccessModifier
-	case object PrivateAM extends AccessModifier
-	case object InheritableAM extends AccessModifier
+  case object PublicAM extends AccessModifier
+  case object PrivateAM extends AccessModifier
+  case object InheritableAM extends AccessModifier
 
-	sealed trait Expression extends ExpressionStatement
+  sealed trait Expression extends ExpressionStatement
 
-	sealed trait VariableDeclaration
+  sealed trait VariableDeclaration
 
 	sealed trait FunctionModifier  // Not sure whether can be merged with AccessModifier? TODO
-  case class FunctionCallFM(call: FunctionCall) extends FunctionModifier
+	case class FunctionCallFM(call: FunctionCall) extends FunctionModifier
 	case class IdentifierFM(id:Identifier) extends FunctionModifier
 	case object ConstantFM extends FunctionModifier
 	case object ExternalFM extends FunctionModifier
@@ -75,13 +76,13 @@ object SolidityAST
   // Note: The above definition of IndexParamList and ParameterList look redundant.
 
   // ElementaryTypeName | Identifier StorageLocation? | Mapping | ArrayTypeName
-	sealed trait TypeName
+  sealed trait TypeName
   // 'address' | 'bool' | 'string' | 'var' | Int | Uint | Byte | Fixed | Ufixed
   sealed trait ElementaryTypeName extends TypeName
   // 'mapping' '(' ElementaryTypeName '=>' TypeName ')'
-	case class Mapping(elemType: ElementaryTypeName, typeName: TypeName) extends TypeName
+  case class Mapping(elemType: ElementaryTypeName, typeName: TypeName) extends TypeName
   // TypeName StorageLocation? '[' Expression? ']'
-	case class ArrayTypeName(typeName: TypeName, loc: Option[StorageLocation], exps: List[Expression]) extends TypeName
+  case class ArrayTypeName(typeName: TypeName, loc: Option[StorageLocation], exps: List[Expression]) extends TypeName
   case class StorageLocationTypeName(id: Identifier, loc: Option[StorageLocation]) extends TypeName
 
   // StorageLocation = 'memory' | 'storage'
