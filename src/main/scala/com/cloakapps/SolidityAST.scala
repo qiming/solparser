@@ -14,10 +14,10 @@ object SolidityAST
 
 	sealed trait ContractPart 
 	case class StateVariableDeclaration(typeName:String,accessMod:Option[AccessModifier],id:String) extends ContractPart
-	case class StructDefintion(id:String, varDecls:List[VariableDeclaration]) extends ContractPart
+	case class StructDefinition(id:String, varDecls:List[VariableDeclaration]) extends ContractPart
 	case class ModifierDefinition(id:String, paras:List[Parameter],block:Block) extends ContractPart // To be continued
 	case class FunctionDefinition(id:String, paras:List[Parameter],funcMod:FunctionModifier, retParas:List[Parameter], block:Block) extends ContractPart
-	case class EnumDefintition(vals:List[EnumValue]) extends ContractPart
+	case class EnumDefinition(vals:List[EnumValue]) extends ContractPart
 
 	type EnumValue = String
 
