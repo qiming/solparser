@@ -26,7 +26,7 @@ object SolidityAST
 	case object PrivateAM extends AccessModifier
 	case object InheritableAM extends AccessModifier
 
-	sealed trait Expression
+	sealed trait Expression // To be continued
 
 	sealed trait VariableDeclaration
 
