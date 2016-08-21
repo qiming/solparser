@@ -12,7 +12,7 @@ resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/release
 
 resolvers += "Maven Repository" at "http://mvnrepository.com/artifact/"
 
-resolvers += "luzhuomi github repo" at "http://github.com/luzhuomi/mavenrepo/raw/master"
+resolvers += "luzhuomi github repo" at "https://raw.githubusercontent.com/luzhuomi/mavenrepo/master/"
 
 //resolvers += "scalaz" at "http://github.com/scalaz/mavenrepo/raw/master"
 
