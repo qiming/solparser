@@ -149,7 +149,7 @@ object SolidityAST
   // Expression '[' Expression? ']'
   case class IndexAccess(array: Expression, index: Option[Expression]) extends Expression
   // Expression? (',' Expression)
-  case class ExpressionSequence(exps: List[Expression]) extends Expression
+  case class Comma(first: Option[Expression], second: Option[Expression]) extends Expression
 
   sealed trait UnaryOperation extends Expression
   case class IncrementPostfix(exp: Expression) extends UnaryOperation
@@ -166,7 +166,7 @@ object SolidityAST
   // TODO: There's another unary >>> operator too, but didn't find any docs about it.
 
   sealed trait BinaryOperation extends Expression
-  // **
+  // **, *, /, %, +, -, &, |, ^, <, >, <=, >=, ==, !=, &&, ||
   case class Power(lhs: Expression, rhs: Expression) extends BinaryOperation
   case class Multiply(lhs: Expression, rhs: Expression) extends BinaryOperation
   case class Divide(lhs: Expression, rhs: Expression) extends BinaryOperation
@@ -184,6 +184,18 @@ object SolidityAST
   case class NotEqual(lhs: Expression, rhs: Expression) extends BinaryOperation
   case class And(lhs: Expression, rhs: Expression) extends BinaryOperation
   case class Or(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // assignment operators: =, |=, ^=, &=, <<=, >>=, +=, -=, *=, /=, %=
+  case class Assign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class BitwiseOrAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class BitwiseXorAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class BitwiseAndAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class LeftShiftAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class RightShiftAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class PlusAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class MinusAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class MultiplyAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class DivideAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class RemainderAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
 
   sealed trait TernaryExpression extends Expression
   // Expression '?' Expression ':' Expression
@@ -215,4 +227,59 @@ object SolidityAST
   case object Days extends TimeUnit
   case object Weeks extends TimeUnit
   case object Years extends TimeUnit
+
+  sealed trait GlobalFunctionCall extends FunctionCall
+  // block.blockhash(uint blockNumber) returns (bytes32)
+  case class BlockHash(blockNumber: Expression) extends GlobalFunctionCall
+  // sha3(...) returns (bytes32)
+  case class Sha3(params:Expression) extends GlobalFunctionCall
+  // sha256(...) returns (bytes32)
+  case class Sha256(params:Expression) extends GlobalFunctionCall
+  // ripemd160(...) returns (bytes32)
+  case class Ripemd160(params:Expression) extends GlobalFunctionCall
+  // ecrecover(byte32 hash, uin8 v, byte32 r, byte32 s) returns (address)
+  case class ECRecover(hash:Expression, v: Expression, r: Expression, s: Expression) extends GlobalFunctionCall
+  // addmod(uint x, uint y, uint k) returns (uint)
+  case class AddMod(x: Expression, y: Expression, k: Expression) extends GlobalFunctionCall
+  // mulmod(uint x, uint y, uint k) returns (uint)
+  case class MulMod(x: Expression, y: Expression, k: Expression) extends GlobalFunctionCall
+  // selfdestruct(address recipient)
+  case class SelfDestruct(recipient: Expression) extends GlobalFunctionCall
+
+  // TODO: how to model <address>.balance : uint256
+  // TODO: how to model <address>.send(uint256 amount) returns (bool) : uint256
+
+  sealed trait GlobalVariable extends Identifier
+  // now: uint -- alias to block.timestamp
+  case object Now extends GlobalVariable
+  // this
+  case object This extends GlobalVariable
+  // super
+  case object Super extends GlobalVariable
+
+  sealed trait GlobalObjMember extends MemberExpression
+  // block.coinbase: address
+  case object BlockCoinBase extends GlobalObjMember
+  // block.difficulty: uint
+  case object BlockDifficulty extends GlobalObjMember
+  // block.gaslimit: uint
+  case object BlockGasLimit extends GlobalObjMember
+  // block.number: uint
+  case object BlockNumber extends GlobalObjMember
+  // block.timestamp: uint
+  case object BlockTimestamp extends GlobalObjMember
+
+  // msg.data: bytes
+  case object MsgData extends GlobalObjMember
+  // msg.gas: uint
+  case object MsgGas extends GlobalObjMember
+  // msg.sender: address
+  case object MsgSender extends GlobalObjMember
+  // msg.value: uint
+  case object MsgValue extends GlobalObjMember
+
+  // tx.gasprice: Uint
+  case object TxGasPrice extends GlobalObjMember
+  // tx.origin: address
+  case object TxOrigin extends GlobalObjMember
 }
