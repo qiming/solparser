@@ -145,7 +145,7 @@ object SolidityAST
   // 'delete' Expression
   case class DeleteExpression(exp: Expression) extends Expression
   // Expression '.' Identifier
-  case class MemberExpression(obj: Expression, member: Expression) extends Expression
+  case class MemberExpression(obj: Expression, member: Identifier) extends Expression
   // Expression '[' Expression? ']'
   case class IndexAccess(array: Expression, index: Option[Expression]) extends Expression
   // Expression? (',' Expression)
