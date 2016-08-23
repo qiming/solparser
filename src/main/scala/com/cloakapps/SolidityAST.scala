@@ -2,11 +2,10 @@ package com.cloakapps
 
 object SolidityAST
 {
-  // (ImportDirective | ContractDefinition)*
-  //  sealed trait SourceUnit
+  // SourceUnit = (ImportDirective | ContractDefinition)*
   type SourceUnit = List[Either[ImportDirective,ContractDefinition]]
 
-  // 'import' StringLiteral ('as' Identifier)? ';'
+  // ImportDirective =  'import' StringLiteral ('as' Identifier)? ';'
   // | 'import' ('*' | Identifier) ('as' Identifier)? 'from' StringLiteral ';'
   // | 'import' '{' Identifier ('as' Identifier)? ( ',' Identifier ('as' Identifier)? )* '}' 'from' StringLiteral ';'
   sealed trait ImportDirective // extends SourceUnit
@@ -14,7 +13,7 @@ object SolidityAST
   case class FromImport(wildcardOrModule: Option[StringLiteral], as: Option[Identifier], from: StringLiteral) extends ImportDirective
   case class MultipleImport(modules: List[(Identifier, Option[Identifier])], from: StringLiteral) extends ImportDirective
 
-  // ( 'contract' | 'library' ) Identifier
+  // ContractDefinition = ( 'contract' | 'library' ) Identifier
   // ( 'is' InheritanceSpecifier (',' InheritanceSpecifier )* )?
   // '{' ContractPart* '}'
   sealed trait ContractDefinition // extends SourceUnit
@@ -25,29 +24,29 @@ object SolidityAST
 	//     contractDef of string * inheritanceSpecifier list * contractPart list  
 	//   | libraryDef of string * inheritanceSpecifier list * contractPart list  
 
-  // Identifier ( '(' Expression ( ',' Expression )* ')' )?
+  // InheritanceSpecifier = Identifier ( '(' Expression ( ',' Expression )* ')' )?
   case class InheritanceSpecifier(id:Identifier,exps:List[Expression]) // have no idea what is this yet. can give an example?
 
-  // StateVariableDeclaration | UsingForDeclaration
+  // ContractPart = StateVariableDeclaration | UsingForDeclaration
   // | StructDefinition | ModifierDefinition | FunctionDefinition | EventDefinition | EnumDefinition
   sealed trait ContractPart
-  // TypeName ( 'public' | 'internal' | 'private' )? Identifier ('=' Expression)? ';'
+  // StateVariableDeclaration = TypeName ( 'public' | 'internal' | 'private' )? Identifier ('=' Expression)? ';'
   case class StateVariableDeclaration(typeName:TypeName,accessMod:Option[AccessModifier],id:Identifier, exp: Expression) extends ContractPart
-  // 'using' Identifier 'for' ('*' | TypeName) ';'
+  // UsingForDeclaration = 'using' Identifier 'for' ('*' | TypeName) ';'
   case class UsingForDeclaration(id: Identifier, wildcardOrName: Option[TypeName]) extends ContractPart
-  // 'struct' Identifier '{' ( VariableDeclaration ';' (VariableDeclaration ';')* )? '}'
+  // StructDefinition = 'struct' Identifier '{' ( VariableDeclaration ';' (VariableDeclaration ';')* )? '}'
   case class StructDefinition(id:Identifier, varDecls:List[VariableDeclaration]) extends ContractPart
-  // 'modifier' Identifier ParameterList? Block
-  case class ModifierDefinition(id:Identifier, paras:List[Parameter],block:Block) extends ContractPart // To be continued
-  // 'function' Identifier? ParameterList
+  // ModifierDefinition = 'modifier' Identifier ParameterList? Block
+  case class ModifierDefinition(id:Identifier, paras:List[Parameter],block:Block) extends ContractPart 
+  // FunctionDefinition = 'function' Identifier? ParameterList
   // ( FunctionCall | Identifier | 'constant' | 'external' | 'public' | 'internal' | 'private' )*
   // ( 'returns' ParameterList )? Block
   case class FunctionDefinition(id:Option[Identifier], paras:List[Parameter],funcMod:List[FunctionModifier], retParas:List[Parameter], block:Block) extends ContractPart
 
-  // 'event' Identifier IndexedParameterList 'anonymous'? ';'
+  // EventDefinition = 'event' Identifier IndexedParameterList 'anonymous'? ';'
   case class EventDefinition(id: Identifier, params: List[Parameter], anonymous: Boolean) extends ContractPart
 
-  // 'enum' Identifier '{' EnumValue? (',' EnumValue)* '}'
+  // EnumDefinition = 'enum' Identifier '{' EnumValue? (',' EnumValue)* '}'
   case class EnumDefinition(id: Identifier, vals:List[EnumValue]) extends ContractPart
   type EnumValue = Identifier
 
@@ -56,9 +55,10 @@ object SolidityAST
   case object PrivateAM extends AccessModifier
   case object InheritableAM extends AccessModifier
 
-  sealed trait Expression extends ExpressionStatement
+  
 
-  sealed trait VariableDeclaration
+  // VariableDeclaration = TypeName Identifier
+  case class  VariableDeclaration(typeName:TypeName, id:Identifier)
 
 	sealed trait FunctionModifier  // Not sure whether can be merged with AccessModifier? TODO
 	case class FunctionCallFM(call: FunctionCall) extends FunctionModifier
@@ -75,15 +75,15 @@ object SolidityAST
   case class IndexedParam(typeName: TypeName, id: Identifier, indexed: Boolean) extends Parameter
   // Note: The above definition of IndexParamList and ParameterList look redundant.
 
-  // ElementaryTypeName | Identifier StorageLocation? | Mapping | ArrayTypeName
+  // TypeName = ElementaryTypeName | Identifier StorageLocation? | Mapping | ArrayTypeName
   sealed trait TypeName
-  // 'address' | 'bool' | 'string' | 'var' | Int | Uint | Byte | Fixed | Ufixed
-  sealed trait ElementaryTypeName extends TypeName
-  // 'mapping' '(' ElementaryTypeName '=>' TypeName ')'
+  // ElementaryTypeName = 'address' | 'bool' | 'string' | 'var' | Int | Uint | Byte | Fixed | Ufixed
+  sealed trait ElementaryTypeName extends TypeName // \kl: maybe it's better to introduce a tag
+  // Mapping = 'mapping' '(' ElementaryTypeName '=>' TypeName ')'
   case class Mapping(elemType: ElementaryTypeName, typeName: TypeName) extends TypeName
-  // TypeName StorageLocation? '[' Expression? ']'
+  // ArrayTypeName = TypeName StorageLocation? '[' Expression? ']'
   case class ArrayTypeName(typeName: TypeName, loc: Option[StorageLocation], exps: List[Expression]) extends TypeName
-  case class StorageLocationTypeName(id: Identifier, loc: Option[StorageLocation]) extends TypeName
+  case class StorageLocationTypeName(id: Identifier, loc: Option[StorageLocation]) extends TypeName // \kl: can't find this in BNF
 
   // StorageLocation = 'memory' | 'storage'
   sealed trait StorageLocation
@@ -106,35 +106,68 @@ object SolidityAST
   // Ufixed type contains many sub types...
   case class UfixedType(typeName: String) extends ElementaryTypeName
 
+  //  Block = '{' Statement* '}'
+  case class Block(statements: List[Statement]) // extends Statement \kl Block is not a statement
   // statements
+  // ---- original defintion ---------
+  // Statement = IfStatement | WhileStatement | ForStatement | Block | PlaceholderStatement |
+  //             ( Continue | Break | Return | Throw | SimpleStatement | ExpressionStatement ) ';'
+  // SimpleStatement = VariableDefinition | ExpressionStatement
+  // ExpressionStatement = Expression | VariableDefinition // \kl VariableDefintion is also in SimpleStatement
+  // ----- written defintiion -----------
+  // \kl Re-writing as follows
+  // Statement = IfStatement | WhileStatement | ForStatement | Block | PlaceholderStatement |
+  //             ( Continue | Break | Return | Throw | VariableDefinition | Expression ) ';'
+  // SimpleStatement = VariableDefinition | Expression
+  // ExpressionStatement = VariableDefinition | Expression 
+
   sealed trait Statement
-  // '{' Statement* '}'
-  case class Block(statements: List[Statement]) extends Statement
-  // 'if' '(' Expression ')' Statement ( 'else' Statement )?
+  // IfStatement = 'if' '(' Expression ')' Statement ( 'else' Statement )?
   case class IfStatement(cond: Expression, ifClause: Statement, elseClause: Option[Statement]) extends Statement
-  // 'while' '(' Expression ')' Statement
+  // WhileStatement = 'while' '(' Expression ')' Statement
   case class WhileStatement(cond: Expression, body: Statement) extends Statement
 
-  // VariableDefinition | ExpressionStatement
-  sealed trait SimpleStatement extends Statement
-  // VariableDeclaration ( '=' Expression )?
-  case class VariableDefinition(decl: VariableDeclaration, exp: Option[Expression]) extends SimpleStatement
+  // VariableDefintion = VariableDeclaration ( '=' Expression )?
+  case class VariableDefinition(decl: VariableDeclaration, exp: Option[Expression]) extends Statement 
 
-  // Expression | VariableDefinition
-  sealed trait ExpressionStatement extends Statement
-
+  type SimpleStatement = Either[VariableDefinition,Expression]
+  type ExpressionStatement = Either[VariableDefinition,Expression]
   //  'for' '(' (SimpleStatement)? ';' (Expression)? ';' (ExpressionStatement)? ')' Statement
   case class ForStatement(init: Option[SimpleStatement], cond: Option[Expression], step: Option[ExpressionStatement], body: Statement) extends Statement
 
-  // '_'
+  // PlaceholderStatement = '_'
   case object PlaceHolderStatement extends Statement
+  // Continue = 'continue'
   case object ContinueStatement extends Statement
+  // Break = 'break'
   case object BreakStatement extends Statement
-  // 'return' Expression?
+  // Return = 'return' Expression?
   case class ReturnStatement(exp: Option[Expression]) extends Statement
+  // Throw = 'throw'
   case object ThrowStatement extends Statement
 
   // expressions
+  /*
+	Expression =
+	  ( Expression ('++' | '--') | FunctionCall | IndexAccess | MemberAccess | '(' Expression ')' )
+	  | ('!' | '~' | 'delete' | '++' | '--' | '+' | '-') Expression
+	  | Expression '**' Expression
+	  | Expression ('*' | '/' | '%') Expression
+	  | Expression ('+' | '-') Expression
+	  | Expression ('<<' | '>>' | '>>>')
+	  | Expression '&' Expression
+	  | Expression '^' Expression
+	  | Expression '|' Expression
+	  | Expression ('<' | '>' | '<=' | '>=') Expression
+	  | Expression ('==' | '!=') Expression
+	  | Expression '&&' Expression
+	  | Expression '||' Expression
+	  | Expression '?' Expression ':' Expression
+	  | Expression ('=' | '|=' | '^=' | '&=' | '<<=' | '>>=' | '+=' | '-=' | '*=' | '/=' | '%=') Expression
+	  | Expression? (',' Expression)
+	  | PrimaryExpression
+  */
+  sealed trait Expression
 
   // '(' Expression ')'
   case class BracedExpression(exp: Expression) extends Expression
@@ -145,73 +178,116 @@ object SolidityAST
   // 'delete' Expression
   case class DeleteExpression(exp: Expression) extends Expression
   // Expression '.' Identifier
-  case class MemberExpression(obj: Expression, member: Identifier) extends Expression
+  case class MemberAccess(obj: Expression, member: Identifier) extends Expression
   // Expression '[' Expression? ']'
   case class IndexAccess(array: Expression, index: Option[Expression]) extends Expression
   // Expression? (',' Expression)
   case class Comma(first: Option[Expression], second: Option[Expression]) extends Expression
 
   sealed trait UnaryOperation extends Expression
+  // Expression ++
   case class IncrementPostfix(exp: Expression) extends UnaryOperation
+  // Expression --
   case class DecrementPostfix(exp: Expression) extends UnaryOperation
+  // ~ Expression
   case class Negate(exp: Expression) extends UnaryOperation
+  // ! Expression
   case class BitwiseNegate(exp: Expression) extends UnaryOperation
+  // ++ Expression
   case class IncrementPrefix(exp: Expression) extends UnaryOperation
+  // -- Expression
   case class DecrementPrefix(exp: Expression) extends UnaryOperation
+  // + Expression
   case class UnaryPlus(exp: Expression) extends UnaryOperation
+  // - Expression
   case class UnaryMinus(exp: Expression) extends UnaryOperation
+  // << Expression
   case class UnaryShiftLeft(exp: Expression) extends UnaryOperation
+  // >> Expression
   case class UnaryShiftRight(exp: Expression) extends UnaryOperation
   // TODO: didn't find detailed explanations of the above << and >> unary operators.
   // TODO: There's another unary >>> operator too, but didn't find any docs about it.
 
   sealed trait BinaryOperation extends Expression
   // **, *, /, %, +, -, &, |, ^, <, >, <=, >=, ==, !=, &&, ||
+  // Expression ** Expression
   case class Power(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression * Expression
   case class Multiply(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression / Expression
   case class Divide(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression % Expression
   case class Remainder(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression + Expression
   case class Plus(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression - Expression
   case class Minus(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression & Expression
   case class BitwiseAnd(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression | Expression
   case class BitwiseXor(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression ^ Expression
   case class BitwiseOr(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression < Expression
   case class LessThan(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression > Expression
   case class GreaterThan(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression <= Expression
   case class LessOrEqual(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression >= Expression
   case class GreaterOrEqual(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression == Expression
   case class Equal(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression != Expression
   case class NotEqual(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression && Expression
   case class And(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression || Expression
   case class Or(lhs: Expression, rhs: Expression) extends BinaryOperation
   // assignment operators: =, |=, ^=, &=, <<=, >>=, +=, -=, *=, /=, %=
+  // Expression = Expression
   case class Assign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression |= Expression
   case class BitwiseOrAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression ^= Expression
   case class BitwiseXorAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression &= Expression
   case class BitwiseAndAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression <<= Expression
   case class LeftShiftAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression >>= Expression
   case class RightShiftAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression += Expression
   case class PlusAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression -= Expression
   case class MinusAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression *= Expression
   case class MultiplyAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression /= Expression
   case class DivideAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  // Expression %= Expression
   case class RemainderAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
 
   sealed trait TernaryExpression extends Expression
   // Expression '?' Expression ':' Expression
   case class IfThenElse(cond: Expression, trueClause: Expression, falseClause: Expression) extends TernaryExpression
 
+  // PrimaryExpression = Identifier | BooleanLiteral | NumberLiteral | StringLiteral
+
   sealed trait PrimaryExpression extends Expression
-  //  [a-zA-Z_] [a-zA-Z_0-9]*
-  case class Identifier(id: String) extends PrimaryExpression
-  //  'true' | 'false'
+  //  Identifier = [a-zA-Z_] [a-zA-Z_0-9]* // this constraint will be enforced by the parser
+  // \kl Identifier is a type, it is not recommended to keep it as case class
+  type Identifier = String
+  case class IdentifierExpr(id: Identifier) extends PrimaryExpression
+  //  BooleanLiteral = 'true' | 'false'
   sealed trait BooleanLiteral extends PrimaryExpression
   case object True extends BooleanLiteral
   case object False extends BooleanLiteral
-  //  '0x'? [0-9]+ (' ' NumberUnit)?
+  //  NumberLiteral = '0x'? [0-9]+ (' ' NumberUnit)?
   case class NumberLiteral(value: String, unit: Option[NumberUnit]) extends PrimaryExpression
-  //  '"' ([^"\r\n\\] | '\\' .)* '"'
-  case class StringLiteral(value: String) extends PrimaryExpression
+  //  StringLiteral = '"' ([^"\r\n\\] | '\\' .)* '"'
+  type StringLiteral = String
+  case class StringLiteralExpr(value: String) extends PrimaryExpression
 
   sealed trait NumberUnit
   sealed trait MoneyUnit extends NumberUnit
@@ -227,7 +303,7 @@ object SolidityAST
   case object Days extends TimeUnit
   case object Weeks extends TimeUnit
   case object Years extends TimeUnit
-
+  /*
   sealed trait GlobalFunctionCall extends FunctionCall
   // block.blockhash(uint blockNumber) returns (bytes32)
   case class BlockHash(blockNumber: Expression) extends GlobalFunctionCall
@@ -248,7 +324,7 @@ object SolidityAST
 
   // TODO: how to model <address>.balance : uint256
   // TODO: how to model <address>.send(uint256 amount) returns (bool) : uint256
-
+  
   sealed trait GlobalVariable extends Identifier
   // now: uint -- alias to block.timestamp
   case object Now extends GlobalVariable
@@ -282,4 +358,5 @@ object SolidityAST
   case object TxGasPrice extends GlobalObjMember
   // tx.origin: address
   case object TxOrigin extends GlobalObjMember
+  */
 }

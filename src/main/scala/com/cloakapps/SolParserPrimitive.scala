@@ -8,6 +8,7 @@ object SolParserPrimitive {
 	// same as token from scalazparsec 0.1.1
 	def char(x:Token):Parser[Token] = sat( ((y:Token) => y == x) )
 
+
 	def anyChar:Parser[Token] = item
 
 	def oneOf(s:String):Parser[Token] = 
@@ -89,5 +90,15 @@ object SolParserPrimitive {
 	}
 
 	def digit:Parser[Char] = sat (_.isDigit)
+
+	def isWhiteSpace(c:Char):Boolean = c match 
+	{
+		case ' ' => true
+		case '\t' => true
+		case '\n' => true
+		case '\r' => true
+		case _ => false
+	}
+
 
 }
