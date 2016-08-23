@@ -100,5 +100,12 @@ object SolParserPrimitive {
 		case _ => false
 	}
 
+	def seq[A,B](pa:Parser[A],pb:Parser[B]):Parser[(A,B)] = for 
+	{
+		a <- pa
+		b <- pb
+	} yield (a,b)
+
+	def whiteSpaces:Parser[List[Char]] = everythingUntil(!isWhiteSpace(_))	
 
 }

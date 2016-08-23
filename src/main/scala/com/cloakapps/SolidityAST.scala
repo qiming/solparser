@@ -6,7 +6,7 @@ object SolidityAST
   type SourceUnit = List[Either[ImportDirective,ContractDefinition]]
 
   // ImportDirective =  'import' StringLiteral ('as' Identifier)? ';'
-  // | 'import' ('*' | Identifier) ('as' Identifier)? 'from' StringLiteral ';'
+  // | 'import' ('*' | StringLiteral) ('as' Identifier)? 'from' StringLiteral ';'
   // | 'import' '{' Identifier ('as' Identifier)? ( ',' Identifier ('as' Identifier)? )* '}' 'from' StringLiteral ';'
   sealed trait ImportDirective // extends SourceUnit
   case class SimpleImport(module: StringLiteral, as: Option[Identifier]) extends ImportDirective

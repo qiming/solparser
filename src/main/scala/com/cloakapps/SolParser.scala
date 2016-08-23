@@ -28,8 +28,8 @@ object SolParser {
 
 	def sourceUnit:Parser[SourceUnit] = point(Nil) // TODO
 
-	def importDirective:Parser[ImportDirective] = // +++(attempt(simpleImport))(+++(attempt(fromImport))(multipleImport))
-		simpleImport
+	def importDirective:Parser[ImportDirective] = +++(attempt(simpleImport))(+++(attempt(fromImport))(multipleImport))
+
 
 	// +++(p1)(p2) execute p1 if it can proceed, otherwise p2
 	// note that the parser combinator are by-default not back-tracking.
@@ -37,31 +37,82 @@ object SolParser {
 	// to make the alternatives backtrackable.
 
 
-	def simpleImport:Parser[ImportDirective] = 
-	{ 
-		def asIdentifier:Parser[Identifier] = for
+	def simpleImport:Parser[ImportDirective] = for 
+	{
+		_        <- string("import")
+		_        <- whiteSpaces
+		strLit   <- stringLiteral 
+		_        <- whiteSpaces		
+		maybeId  <- optional(asIdentifier)
+		asId = maybeId match 
 		{
-			spaces1 <- everythingUntil(!isWhiteSpace(_))
-			a       <- string("as")
-			spaces2 <- everythingUntil(!isWhiteSpace(_))
-			id      <- identifier   
-		} yield (id)
+			case -\/(id) => Some(id) // left
+			case \/-(_)  => None     // right
+		}
+		_        <- whiteSpaces
+		_        <- char(';')
+	} yield SimpleImport(strLit, asId)
+	
+	
+	def fromImport:Parser[ImportDirective] = for 
+	{
+		_               <- string("import")
+		_               <- whiteSpaces
+		asterixOrStrLit <- either1(char('*'))(stringLiteral)
+		wildcardOrModule = asterixOrStrLit match 
+		{
+			case -\/(_)   => None
+			case \/-(mod) => Some(mod) 
+		}
+		_        <- whiteSpaces		
+		maybeId  <- optional(asIdentifier)			
+		asId = maybeId match 
+		{
+			case -\/(id) => Some(id) // left
+			case \/-(_)  => None     // right
+		}
+		_        <- whiteSpaces
+		_        <- string("from")
+		_        <- whiteSpaces
+		from     <- stringLiteral
+		_        <- char(';')
+	} yield FromImport(wildcardOrModule,asId,from)
+	
 
-		for 
+	def multipleImport:Parser[ImportDirective] = 
+	{
+		def idAsIdOpt:Parser[(Identifier,Option[Identifier])] = for 
 		{
-			im       <- string("import")
-			spaces   <- everythingUntil(!isWhiteSpace(_))
-			strLit   <- stringLiteral 
-			maybeId  <- optional(asIdentifier)
+			id <- identifier
+			_  <- whiteSpaces
+			maybeId  <- optional(asIdentifier)			
 			asId = maybeId match 
 			{
 				case -\/(id) => Some(id) // left
 				case \/-(_)  => None     // right
 			}
-			semicol  <- char(';')
-		} yield SimpleImport(strLit, asId)
+		} yield (id,asId)
+		for 
+		{
+			_          <- string("import")
+			_          <- whiteSpaces
+			_		       <- char('{')
+			_          <- whiteSpaces
+			modules    <- interleave(idAsIdOpt)(seq(whiteSpaces,char(',')))
+			_          <- whiteSpaces
+			_          <- string("from")
+			_          <- whiteSpaces
+			from       <- stringLiteral
+			_          <- char(';')
+		} yield MultipleImport(modules, from)
 	}
 
+	def asIdentifier:Parser[Identifier] = for
+	{
+		_  <- string("as")
+		_  <- whiteSpaces
+		id <- identifier   
+	} yield (id)
 
 
 	def identifier:Parser[Identifier] = for 
