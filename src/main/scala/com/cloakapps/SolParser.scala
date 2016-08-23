@@ -1,7 +1,7 @@
 package com.cloakapps
 
 import scalaz._
-import Scalaz.{interleave => _, _}
+import Scalaz.{interleave => _, char => _, _}
 import com.github.luzhuomi.scalazparsec.NonBacktracking._
 import com.cloakapps.SolParserPrimitive._
 import com.cloakapps.SolidityAST._
@@ -58,6 +58,7 @@ object SolParser {
 				case -\/(id) => Some(id) // left
 				case \/-(_)  => None     // right
 			}
+			semicol  <- char(';')
 		} yield SimpleImport(strLit, asId)
 	}
 

@@ -1,7 +1,7 @@
 package com.cloakapps
 
 import scalaz._
-import Scalaz.{interleave => _, _}
+import Scalaz.{interleave => _, char => _, _}
 import com.github.luzhuomi.scalazparsec.NonBacktracking._
 
 object SolParserPrimitive {
