@@ -37,7 +37,7 @@ object SolParser {
 	// to make the alternatives backtrackable.
 
 
-	def simpleImport:Parser[ImportDirective] = for 
+	def simpleImport:Parser[ImportDirective] = for
 	{
 		_        <- string("import")
 		_        <- whiteSpaces
@@ -123,8 +123,44 @@ object SolParser {
 
 	def stringLiteral:Parser[StringLiteral] = for
 	{
-		cs <- many1(sat(!isWhiteSpace(_))) // TODO , exclude \\a
+    _ <- sat(x => x == ''' || x == '"')
+		cs <- many(sat(x => x != '\r' && x != '\n' && x != '"' && x != ''')) // TODO , exclude \\a , handle escape
+    _ <- sat(x => x == ''' || x == '"')
 	} yield cs.mkString
 
+  // booleans
+	def trueLiteral:Parser[BooleanLiteral] = for {
+    _ <- string("true")
+  } yield True
+	def falseLiteral:Parser[BooleanLiteral] = for {
+    _ <- string("false")
+  } yield False
+	def booleanLiteral:Parser[BooleanLiteral] = +++(attempt(trueLiteral))(attempt(falseLiteral))
 
+  // numbers
+
+  // money units
+  def wei:Parser[NumberUnit] = for { _ <- string("wei") } yield Wei
+  def szabo:Parser[NumberUnit] = for { _ <- string("szabo") } yield Szabo
+  def finney:Parser[NumberUnit] = for { _ <- string("finney") } yield Finney
+  def ether:Parser[NumberUnit] = for { _ <- string("ether") } yield Ether
+  def moneyUnit:Parser[NumberUnit] = +++(attempt(wei)) (+++(attempt(szabo))(+++(attempt(finney))(attempt(ether))))
+
+  // time units
+  def seconds:Parser[NumberUnit] = for { _ <- string("seconds") } yield Seconds
+  def minutes:Parser[NumberUnit] = for { _ <- string("minutes") } yield Minutes
+  def hours:Parser[NumberUnit] = for { _ <- string("hours") } yield Hours
+  def days:Parser[NumberUnit] = for { _ <- string("days") } yield Days
+  def weeks:Parser[NumberUnit] = for { _ <- string("weeks") } yield Weeks
+  def years:Parser[NumberUnit] = for { _ <- string("years") } yield Years
+  def timeUnit:Parser[NumberUnit] = +++(attempt(years))(+++(attempt(weeks))(+++(attempt(days)) (+++(attempt(hours))(+++(attempt(minutes))(attempt(seconds))))))
+
+  def numberUnit:Parser[NumberUnit] = +++(attempt(moneyUnit))(attempt(timeUnit))
+
+  def numberLiteral:Parser[PrimaryExpression] = for {
+    _ <- attempt(string("0x"))
+    cs <- many1(digit)
+    _ <- many(whiteSpaces)
+    unit <- attempt(numberUnit)
+  } yield NumberLiteral(cs.mkString, Option(unit))
 }
