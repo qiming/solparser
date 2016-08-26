@@ -144,7 +144,7 @@ object SolParser {
   def szabo:Parser[NumberUnit] = for { _ <- string("szabo") } yield Szabo
   def finney:Parser[NumberUnit] = for { _ <- string("finney") } yield Finney
   def ether:Parser[NumberUnit] = for { _ <- string("ether") } yield Ether
-  def moneyUnit:Parser[NumberUnit] = +++(attempt(wei)) (+++(attempt(szabo))(+++(attempt(finney))(attempt(ether))))
+  def moneyUnit:Parser[NumberUnit] = anyAttempt(List(wei, szabo, finney, ether))
 
   // time units
   def seconds:Parser[NumberUnit] = for { _ <- string("seconds") } yield Seconds
@@ -153,14 +153,21 @@ object SolParser {
   def days:Parser[NumberUnit] = for { _ <- string("days") } yield Days
   def weeks:Parser[NumberUnit] = for { _ <- string("weeks") } yield Weeks
   def years:Parser[NumberUnit] = for { _ <- string("years") } yield Years
-  def timeUnit:Parser[NumberUnit] = +++(attempt(years))(+++(attempt(weeks))(+++(attempt(days)) (+++(attempt(hours))(+++(attempt(minutes))(attempt(seconds))))))
+  def timeUnit:Parser[NumberUnit] = anyAttempt(List(seconds, minutes, hours, days, weeks, years))
 
-  def numberUnit:Parser[NumberUnit] = +++(attempt(moneyUnit))(attempt(timeUnit))
+  def numberUnit:Parser[NumberUnit] = for
+  {
+    _ <- many1(either1(char(' '))(char('\t')))
+    u <- any(List(moneyUnit, timeUnit))
+  } yield u
 
-  def numberLiteral:Parser[PrimaryExpression] = for {
-    _ <- attempt(string("0x"))
-    cs <- many1(digit)
-    _ <- many(whiteSpaces)
-    unit <- attempt(numberUnit)
-  } yield NumberLiteral(cs.mkString, Option(unit))
+  def numberLiteral:Parser[NumberLiteral] = for {
+    prefix <- either1(string("0x"))(digit)
+    cs <- many(digit)
+    maybeUnit <- optional(numberUnit)
+    unit = maybeUnit match {
+      case -\/(x) => Some(x) // left
+      case \/-(_) => None    // right
+    }
+  } yield NumberLiteral(prefix::cs mkString, unit)
 }

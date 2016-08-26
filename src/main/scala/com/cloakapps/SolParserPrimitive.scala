@@ -108,4 +108,6 @@ object SolParserPrimitive {
 
 	def whiteSpaces:Parser[List[Char]] = everythingUntil(!isWhiteSpace(_))	
 
+  def any[A](parsers: List[Parser[A]]):Parser[A] = parsers.reduceLeft((a,b) => +++(a)(b))
+	def anyAttempt[A](parsers: List[Parser[A]]):Parser[A] = parsers.reduceLeft((a,b) => +++(attempt(a))(attempt(b)))
 }
