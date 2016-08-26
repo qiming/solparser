@@ -4,6 +4,8 @@ version := "0.0.1"
 
 scalaVersion := "2.11.8"
 
+scalacOptions += "-feature"
+
 organization := "com.cloakapps"
 
 resolvers += "Apache Repo" at "https://repository.apache.org/content/repositories/releases"

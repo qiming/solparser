@@ -169,5 +169,5 @@ object SolParser {
       case -\/(x) => Some(x) // left
       case \/-(_) => None    // right
     }
-  } yield NumberLiteral(prefix::cs mkString, unit)
+  } yield NumberLiteral((prefix::cs).mkString, unit)
 }
