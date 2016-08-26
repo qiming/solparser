@@ -115,27 +115,33 @@ object SolParser {
 	} yield (id)
 
 
-	def identifier:Parser[Identifier] = for 
-	{
+	def identifier:Parser[Identifier] = for {
 		c  <- sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z'))
 		cs <- many( sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z') || x.isDigit ) ) 
 	} yield (c::cs).mkString
 
-	def stringLiteral:Parser[StringLiteral] = for
-	{
+  def identifierExpr:Parser[Expression] = for {
+    s <- identifier
+  } yield IdentifierExpr(s)
+
+	def stringLiteral:Parser[StringLiteral] = for {
     _ <- sat(x => x == ''' || x == '"')
 		cs <- many(sat(x => x != '\r' && x != '\n' && x != '"' && x != ''')) // TODO , exclude \\a , handle escape
     _ <- sat(x => x == ''' || x == '"')
 	} yield cs.mkString
 
+  def stringLiteralExpr:Parser[Expression] = for {
+    s <- stringLiteral
+  } yield StringLiteralExpr(s)
+
   // booleans
-	def trueLiteral:Parser[BooleanLiteral] = for {
+	def trueLiteral:Parser[Expression] = for {
     _ <- string("true")
   } yield True
-	def falseLiteral:Parser[BooleanLiteral] = for {
+	def falseLiteral:Parser[Expression] = for {
     _ <- string("false")
   } yield False
-	def booleanLiteral:Parser[BooleanLiteral] = +++(attempt(trueLiteral))(attempt(falseLiteral))
+	def booleanLiteral:Parser[Expression] = anyAttempt(List(trueLiteral, falseLiteral))
 
   // numbers
 
@@ -161,7 +167,7 @@ object SolParser {
     u <- any(List(moneyUnit, timeUnit))
   } yield u
 
-  def numberLiteral:Parser[NumberLiteral] = for {
+  def numberLiteral:Parser[Expression] = for {
     prefix <- either1(string("0x"))(digit)
     cs <- many(digit)
     maybeUnit <- optional(numberUnit)
@@ -170,4 +176,6 @@ object SolParser {
       case \/-(_) => None    // right
     }
   } yield NumberLiteral((prefix::cs).mkString, unit)
+
+  def primaryExpression:Parser[Expression] = anyAttempt(List(identifierExpr, booleanLiteral, numberLiteral, stringLiteralExpr))
 }
