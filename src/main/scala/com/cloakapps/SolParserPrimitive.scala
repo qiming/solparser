@@ -100,13 +100,26 @@ object SolParserPrimitive {
 		case _ => false
 	}
 
+  	def whiteSpace:Parser[Char] = sat (isWhiteSpace)
+
 	def seq[A,B](pa:Parser[A],pb:Parser[B]):Parser[(A,B)] = for 
 	{
 		a <- pa
 		b <- pb
 	} yield (a,b)
 
-	def whiteSpaces:Parser[List[Char]] = everythingUntil(!isWhiteSpace(_))	
+	def whiteSpaces:Parser[List[Char]] = everythingUntil(!isWhiteSpace(_))
+
+	def sep(separator:String):Parser[String] = for {
+      _ <- whiteSpaces
+	  s <- string(separator)
+	  _ <- whiteSpaces
+	} yield s
+
+  def toOption[A](a: \/[A,Unit]): Option[A] = a match {
+    case -\/(x) => Some(x) // left
+    case \/-(_)  => None   // right
+  }
 
   def any[A](parsers: List[Parser[A]]):Parser[A] = parsers.reduceLeft((a,b) => +++(a)(b))
 	def anyAttempt[A](parsers: List[Parser[A]]):Parser[A] = parsers.reduceLeft((a,b) => +++(attempt(a))(attempt(b)))

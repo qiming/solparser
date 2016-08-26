@@ -171,11 +171,58 @@ object SolParser {
     prefix <- either1(string("0x"))(digit)
     cs <- many(digit)
     maybeUnit <- optional(numberUnit)
-    unit = maybeUnit match {
-      case -\/(x) => Some(x) // left
-      case \/-(_) => None    // right
-    }
-  } yield NumberLiteral((prefix::cs).mkString, unit)
+  } yield NumberLiteral((prefix::cs).mkString, toOption(maybeUnit))
 
   def primaryExpression:Parser[Expression] = anyAttempt(List(identifierExpr, booleanLiteral, numberLiteral, stringLiteralExpr))
+
+  def bracedExpr:Parser[Expression] = for {
+    _ <- sep("(")
+    exp <- expression
+    _ <- sep(")")
+  } yield exp
+
+  def functionCall:Parser[Expression] = empty // TODO
+
+  def newExpression:Parser[Expression] = for {
+    _ <- string("new")
+    _ <- many1(whiteSpace)
+    id <- identifier
+  } yield NewExpression(id)
+
+  def delExpression:Parser[Expression] = for {
+    _ <- string("delete")
+    _ <- many1(whiteSpace)
+    exp <- expression
+  } yield exp
+
+  def memberAccess:Parser[Expression] = for {
+    exp <- expression
+    _ <- char('.')
+    id <- identifier
+  } yield MemberAccess(exp, id)
+
+  def indexAccess:Parser[Expression] = for {
+  	exp <- expression
+  	_ <- sep("[")
+  	ind <- optional(expression)
+  	_ <- sep("]")
+  } yield IndexAccess(exp, toOption(ind))
+
+  def expression:Parser[Expression] = empty // TODO
+
+  def unaryExpr:Parser[Expression] = empty // TODO
+
+  def binaryExpr:Parser[Expression] = empty // TODO
+
+  def ifThenElse:Parser[Expression] = for {
+    cond <- expression
+    _ <- sep("?")
+    trueClause <- expression
+    _ <- sep(":")
+    falseClause <- expression
+  } yield IfThenElse(cond, trueClause, falseClause)
+
+  def ternaryExpression:Parser[Expression] = ifThenElse
+
+
 }
