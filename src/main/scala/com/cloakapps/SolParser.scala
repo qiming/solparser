@@ -11,137 +11,137 @@ import com.cloakapps.SolidityAST._
   */
 object SolParser {
 
-	def parseSol(x:String):Result[Option[(SourceUnit,List[Token])]] = 
-	{
-		def m:Parser[SourceUnit] = for 
-		{
-			su <- sourceUnit
-			_   <- eof
-		} yield (su)
-		run(m)(x.toList)
-	}
+  def parseSol(x:String):Result[Option[(SourceUnit,List[Token])]] =
+  {
+    def m:Parser[SourceUnit] = for
+    {
+      su <- sourceUnit
+      _   <- eof
+    } yield (su)
+    run(m)(x.toList)
+  }
 
-	def getLoc:Parser[Int] = for 
-	{
-		tokens <- getState
-	} yield tokens.length
+  def getLoc:Parser[Int] = for
+  {
+    tokens <- getState
+  } yield tokens.length
 
-	def sourceUnit:Parser[SourceUnit] = point(Nil) // TODO
+  def sourceUnit:Parser[SourceUnit] = point(Nil) // TODO
 
-	def importDirective:Parser[ImportDirective] = +++(attempt(simpleImport))(+++(attempt(fromImport))(multipleImport))
-
-
-	// +++(p1)(p2) execute p1 if it can proceed, otherwise p2
-	// note that the parser combinator are by-default not back-tracking.
-	// since simple , from and multiple imports are all starting with the keyword "import", we need to insert attempt()
-	// to make the alternatives backtrackable.
+  def importDirective:Parser[ImportDirective] = +++(attempt(simpleImport))(+++(attempt(fromImport))(multipleImport))
 
 
-	def simpleImport:Parser[ImportDirective] = for
-	{
-		_        <- string("import")
-		_        <- whiteSpaces
-		strLit   <- stringLiteral 
-		_        <- whiteSpaces		
-		maybeId  <- optional(asIdentifier)
-		asId = maybeId match 
-		{
-			case -\/(id) => Some(id) // left
-			case \/-(_)  => None     // right
-		}
-		_        <- whiteSpaces
-		_        <- char(';')
-	} yield SimpleImport(strLit, asId)
-	
-	
-	def fromImport:Parser[ImportDirective] = for 
-	{
-		_               <- string("import")
-		_               <- whiteSpaces
-		asterixOrStrLit <- either1(char('*'))(stringLiteral)
-		wildcardOrModule = asterixOrStrLit match 
-		{
-			case -\/(_)   => None
-			case \/-(mod) => Some(mod) 
-		}
-		_        <- whiteSpaces		
-		maybeId  <- optional(asIdentifier)			
-		asId = maybeId match 
-		{
-			case -\/(id) => Some(id) // left
-			case \/-(_)  => None     // right
-		}
-		_        <- whiteSpaces
-		_        <- string("from")
-		_        <- whiteSpaces
-		from     <- stringLiteral
-		_        <- char(';')
-	} yield FromImport(wildcardOrModule,asId,from)
-	
-
-	def multipleImport:Parser[ImportDirective] = 
-	{
-		def idAsIdOpt:Parser[(Identifier,Option[Identifier])] = for 
-		{
-			id <- identifier
-			_  <- whiteSpaces
-			maybeId  <- optional(asIdentifier)			
-			asId = maybeId match 
-			{
-				case -\/(id) => Some(id) // left
-				case \/-(_)  => None     // right
-			}
-		} yield (id,asId)
-		for 
-		{
-			_          <- string("import")
-			_          <- whiteSpaces
-			_		       <- char('{')
-			_          <- whiteSpaces
-			modules    <- interleave(idAsIdOpt)(seq(whiteSpaces,char(',')))
-			_          <- whiteSpaces
-			_          <- string("from")
-			_          <- whiteSpaces
-			from       <- stringLiteral
-			_          <- char(';')
-		} yield MultipleImport(modules, from)
-	}
-
-	def asIdentifier:Parser[Identifier] = for
-	{
-		_  <- string("as")
-		_  <- whiteSpaces
-		id <- identifier   
-	} yield (id)
+  // +++(p1)(p2) execute p1 if it can proceed, otherwise p2
+  // note that the parser combinator are by-default not back-tracking.
+  // since simple , from and multiple imports are all starting with the keyword "import", we need to insert attempt()
+  // to make the alternatives backtrackable.
 
 
-	def identifier:Parser[Identifier] = for {
-		c  <- sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z'))
-		cs <- many( sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z') || x.isDigit ) ) 
-	} yield (c::cs).mkString
+  def simpleImport:Parser[ImportDirective] = for
+  {
+    _        <- string("import")
+    _        <- whiteSpaces
+    strLit   <- stringLiteral
+    _        <- whiteSpaces
+    maybeId  <- optional(asIdentifier)
+    asId = maybeId match
+    {
+      case -\/(id) => Some(id) // left
+      case \/-(_)  => None     // right
+    }
+    _        <- whiteSpaces
+    _        <- char(';')
+  } yield SimpleImport(strLit, asId)
+
+
+  def fromImport:Parser[ImportDirective] = for
+  {
+    _               <- string("import")
+    _               <- whiteSpaces
+    asterixOrStrLit <- either1(char('*'))(stringLiteral)
+    wildcardOrModule = asterixOrStrLit match
+    {
+      case -\/(_)   => None
+      case \/-(mod) => Some(mod)
+    }
+    _        <- whiteSpaces
+    maybeId  <- optional(asIdentifier)
+    asId = maybeId match
+    {
+      case -\/(id) => Some(id) // left
+      case \/-(_)  => None     // right
+    }
+    _        <- whiteSpaces
+    _        <- string("from")
+    _        <- whiteSpaces
+    from     <- stringLiteral
+    _        <- char(';')
+  } yield FromImport(wildcardOrModule,asId,from)
+
+
+  def multipleImport:Parser[ImportDirective] =
+  {
+    def idAsIdOpt:Parser[(Identifier,Option[Identifier])] = for
+    {
+      id <- identifier
+      _  <- whiteSpaces
+      maybeId  <- optional(asIdentifier)
+      asId = maybeId match
+      {
+        case -\/(id) => Some(id) // left
+        case \/-(_)  => None     // right
+      }
+    } yield (id,asId)
+    for
+    {
+      _          <- string("import")
+      _          <- whiteSpaces
+      _		       <- char('{')
+      _          <- whiteSpaces
+      modules    <- interleave(idAsIdOpt)(seq(whiteSpaces,char(',')))
+      _          <- whiteSpaces
+      _          <- string("from")
+      _          <- whiteSpaces
+      from       <- stringLiteral
+      _          <- char(';')
+    } yield MultipleImport(modules, from)
+  }
+
+  def asIdentifier:Parser[Identifier] = for
+  {
+    _  <- string("as")
+    _  <- whiteSpaces
+    id <- identifier
+  } yield (id)
+
+
+  def identifier:Parser[Identifier] = for {
+    c  <- sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z'))
+    cs <- many( sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z') || x.isDigit ) )
+  } yield (c::cs).mkString
 
   def identifierExpr:Parser[Expression] = for {
     s <- identifier
   } yield IdentifierExpr(s)
 
-	def stringLiteral:Parser[StringLiteral] = for {
+  def stringLiteral:Parser[StringLiteral] = for {
     _ <- sat(x => x == ''' || x == '"')
-		cs <- many(sat(x => x != '\r' && x != '\n' && x != '"' && x != ''')) // TODO , exclude \\a , handle escape
+    cs <- many(sat(x => x != '\r' && x != '\n' && x != '"' && x != ''')) // TODO , exclude \\a , handle escape
     _ <- sat(x => x == ''' || x == '"')
-	} yield cs.mkString
+  } yield cs.mkString
 
   def stringLiteralExpr:Parser[Expression] = for {
     s <- stringLiteral
   } yield StringLiteralExpr(s)
 
   // booleans
-	def trueLiteral:Parser[Expression] = for {
+  def trueLiteral:Parser[Expression] = for {
     _ <- string("true")
   } yield True
-	def falseLiteral:Parser[Expression] = for {
+  def falseLiteral:Parser[Expression] = for {
     _ <- string("false")
   } yield False
-	def booleanLiteral:Parser[Expression] = anyAttempt(List(trueLiteral, falseLiteral))
+  def booleanLiteral:Parser[Expression] = anyAttempt(List(trueLiteral, falseLiteral))
 
   // numbers
 
@@ -163,7 +163,7 @@ object SolParser {
 
   def numberUnit:Parser[NumberUnit] = for
   {
-    _ <- many1(either1(char(' '))(char('\t')))
+    _ <- whiteSpace1
     u <- any(List(moneyUnit, timeUnit))
   } yield u
 
@@ -202,17 +202,83 @@ object SolParser {
   } yield MemberAccess(exp, id)
 
   def indexAccess:Parser[Expression] = for {
-  	exp <- expression
-  	_ <- sep("[")
-  	ind <- optional(expression)
-  	_ <- sep("]")
+    exp <- expression
+    _ <- sep("[")
+    ind <- optional(expression)
+    _ <- sep("]")
   } yield IndexAccess(exp, toOption(ind))
 
-  def expression:Parser[Expression] = empty // TODO
+  def comma:Parser[Expression] = for {
+    first <- optional(expression)
+    _ <- sep(",")
+    second <- expression
+  } yield Comma(toOption(first), second)
 
-  def unaryExpr:Parser[Expression] = empty // TODO
+  def postfixUnaryOp:Parser[String] = anyAttempt(List("++", "--", ">>", "<<").map(s => string(s)))
+  def prefixUnaryOp:Parser[String] = anyAttempt(List("++", "--", "!", "~", "+", "-").map(s => string(s)))
+  def binaryOp:Parser[String] = anyAttempt(List("**", 
+  	"==", "!=", "<=", ">=", "<", ">", 
+  	"*=", "/=", "%=", "|=", "^=", "&=", "<<=", ">>=", "+=", "-=", 
+  	"*", "/", "%", "+", "-", "&&", "||", "&", "|", "^", "=").map(s => string(s)))
 
-  def binaryExpr:Parser[Expression] = empty // TODO
+  def postfixUnaryOperation:Parser[Expression] = for {
+    exp <- expression
+    op <- postfixUnaryOp
+  } yield op match {
+    case "++" => IncrementPostfix(exp)
+    case "--" => DecrementPostfix(exp)
+    case "<<" => UnaryShiftLeft(exp)
+    case ">>" => UnaryShiftRight(exp)
+  }
+
+  def prefixUnaryOperation:Parser[Expression] = for {
+  	op <- prefixUnaryOp
+  	exp <- expression
+  } yield op match {
+  	case "++" => IncrementPrefix(exp)
+  	case "--" => DecrementPrefix(exp)
+  	case "!" => Negate(exp)
+  	case "~" => BitwiseNegate(exp)
+  	case "+" => UnaryPlus(exp)
+  	case "-" => UnaryMinus(exp)
+  }
+
+  def unaryOperation:Parser[Expression] = anyAttempt(List(prefixUnaryOp, postfixUnaryOperation))
+
+  def binaryOperation:Parser[Expression] = for {
+  	lhs <- expression
+  	op <- binaryOp
+  	rhs <- expression
+  } yield op match {
+  	case "**" => Power(lhs, rhs)
+  	case "==" => EqualTo(lhs, rhs)
+  	case "!=" => NotEqual(lhs, rhs)
+  	case "<=" => LessOrEqual(lhs, rhs)
+  	case ">=" => GreaterOrEqual(lhs, rhs)
+  	case "<"  => LessThan(lhs, rhs)
+  	case ">"  => GreaterThan(lhs, rhs)
+  	case "*=" => MultiplyAssign(lhs, rhs)
+  	case "/=" => DivideAssign(lhs, rhs)
+  	case "%=" => RemainderAssign(lhs, rhs)
+  	case "|=" => BitwiseOrAssign(lhs, rhs)
+  	case "^=" => BitwiseXorAssign(lhs, rhs)
+  	case "&=" => BitwiseAndAssign(lhs, rhs)
+  	case "<<=" => LeftShiftAssign(lhs, rhs)
+  	case ">>=" => RightShiftAssign(lhs, rhs)
+  	case "+=" => PlusAssign(lhs, rhs)
+  	case "-=" => MinusAssign(lhs, rhs)
+  	case "*" => Multiply(lhs, rhs)
+  	case "/" => DivideBy(lhs, rhs)
+  	case "%" => Remainder(lhs, rhs)
+  	case "+" => Add(lhs, rhs)
+  	case "-" => Subtract(lhs, rhs)
+  	case "&&" => And(lhs, rhs)
+  	case "||" => Or(lhs, rhs)
+  	case "&" => BitwiseAnd(lhs, rhs)
+  	case "|" => BitwiseOr(lhs, rhs)
+  	case "^" => BitwiseXor(lhs, rhs)
+  	case "=" => Assign(lhs, rhs)
+  }
 
   def ifThenElse:Parser[Expression] = for {
     cond <- expression
@@ -224,5 +290,7 @@ object SolParser {
 
   def ternaryExpression:Parser[Expression] = ifThenElse
 
+  def expression:Parser[Expression] = anyAttempt(List(postfixUnaryOperation, functionCall, indexAccess, memberAccess, bracedExpr,
+  	unaryOperation, binaryOperation, ternaryExpression, comma, primaryExpression)) 
 
 }

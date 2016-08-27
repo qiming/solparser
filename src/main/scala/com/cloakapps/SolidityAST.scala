@@ -182,7 +182,7 @@ object SolidityAST
   // Expression '[' Expression? ']'
   case class IndexAccess(array: Expression, index: Option[Expression]) extends Expression
   // Expression? (',' Expression)
-  case class Comma(first: Option[Expression], second: Option[Expression]) extends Expression
+  case class Comma(first: Option[Expression], second: Expression) extends Expression
 
   sealed trait UnaryOperation extends Expression
   // Expression ++
@@ -215,13 +215,13 @@ object SolidityAST
   // Expression * Expression
   case class Multiply(lhs: Expression, rhs: Expression) extends BinaryOperation
   // Expression / Expression
-  case class Divide(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class DivideBy(lhs: Expression, rhs: Expression) extends BinaryOperation
   // Expression % Expression
   case class Remainder(lhs: Expression, rhs: Expression) extends BinaryOperation
   // Expression + Expression
-  case class Plus(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class Add(lhs: Expression, rhs: Expression) extends BinaryOperation
   // Expression - Expression
-  case class Minus(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class Subtract(lhs: Expression, rhs: Expression) extends BinaryOperation
   // Expression & Expression
   case class BitwiseAnd(lhs: Expression, rhs: Expression) extends BinaryOperation
   // Expression | Expression
@@ -237,7 +237,7 @@ object SolidityAST
   // Expression >= Expression
   case class GreaterOrEqual(lhs: Expression, rhs: Expression) extends BinaryOperation
   // Expression == Expression
-  case class Equal(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class EqualTo(lhs: Expression, rhs: Expression) extends BinaryOperation
   // Expression != Expression
   case class NotEqual(lhs: Expression, rhs: Expression) extends BinaryOperation
   // Expression && Expression
