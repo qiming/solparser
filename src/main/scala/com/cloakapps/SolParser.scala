@@ -114,6 +114,7 @@ object SolParser {
     id <- identifier
   } yield (id)
 
+  // expressions
 
   def identifier:Parser[Identifier] = for {
     c  <- sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z'))
@@ -143,8 +144,6 @@ object SolParser {
   } yield False
   def booleanLiteral:Parser[Expression] = anyAttempt(List(trueLiteral, falseLiteral))
 
-  // numbers
-
   // money units
   def wei:Parser[NumberUnit] = for { _ <- string("wei") } yield Wei
   def szabo:Parser[NumberUnit] = for { _ <- string("szabo") } yield Szabo
@@ -161,8 +160,7 @@ object SolParser {
   def years:Parser[NumberUnit] = for { _ <- string("years") } yield Years
   def timeUnit:Parser[NumberUnit] = anyAttempt(List(seconds, minutes, hours, days, weeks, years))
 
-  def numberUnit:Parser[NumberUnit] = for
-  {
+  def numberUnit:Parser[NumberUnit] = for {
     _ <- whiteSpace1
     u <- any(List(moneyUnit, timeUnit))
   } yield u
@@ -305,7 +303,74 @@ object SolParser {
   def ternaryExpression:Parser[Expression] = ifThenElse
 
   def expression:Parser[Expression] = anyAttempt(List(
-  	functionCall, methodCall, indexAccess, memberAccess, enclosedExpression, delExpression, newExpression, 
-  	unaryOperation, binaryOperation, ternaryExpression, comma, primaryExpression)) 
+  	functionCall, methodCall, indexAccess, memberAccess, enclosedExpression, 
+    delExpression, newExpression, unaryOperation, binaryOperation, 
+    ternaryExpression, comma, primaryExpression)) 
+
+  // storage location
+
+  def memory:Parser[StorageLocation] = for { _ <- spaceString("memory") } yield Memory
+  def storage:Parser[StorageLocation] = for { _ <- spaceString("storage") } yield Storage
+  def storageLocation:Parser[StorageLocation] = any(List(memory, storage))
+
+  // types
+
+  def typeName:Parser[TypeName] = anyAttempt(List(elementaryTypeName, storageLocationTypeName, mapping, arrayTypeName))
+
+  def addressType:Parser[ElementaryTypeName] = for { _ <- spaceString("address") } yield AddressType
+
+  def elementaryType:Parser[ElementaryTypeName] = anyAttempt(List(addressType)) // TODO
+
+  def elementaryTypeName:Parser[TypeName] = for {
+    _ <- elementaryType
+  } yield ElementaryType
+
+  def storageLocationTypeName:Parser[TypeName] = empty // TODO
+
+  def mapping:Parser[TypeName] = empty // TODO
+
+  def arrayTypeName:Parser[TypeName] = for {
+    name <- typeName
+    storage <- optional(storageLocation)
+    _ <- whiteSpace1
+    _ <- sep("[")
+    exp <- optional(expression)
+    _ <- sep("]")
+  } yield ArrayTypeName(name, toOption(storage), toOption(exp))
+
+  def variableDeclaration:Parser[VariableDeclaration] = for {
+    name <- typeName
+    _ <- whiteSpace1
+    id <- identifier
+  } yield VariableDeclaration(name, id)
+
+  // statements
+
+  def statement:Parser[Statement] = empty // TODO
+
+  def ifStatement:Parser[Statement] = {
+    def elseStmt:Parser[Statement] = for {
+      _ <- string("else")
+      _ <- whiteSpace1
+      stmt <- statement
+    } yield stmt
+
+    for {
+      _ <- sep("if")
+      _ <- sep("(")
+      cond <- expression
+      _ <- sep(")")
+      ifClause <- statement
+      elseClause <- optional(elseStmt)
+    } yield IfStatement(cond, ifClause, toOption(elseClause))
+  }
+
+  def whileStatement:Parser[Statement] = for {
+    _ <- string("while")
+    _ <- sep("(")
+    cond <- expression
+    _ <- sep(")")
+    body <- statement
+  } yield WhileStatement(cond, body)
 
 }

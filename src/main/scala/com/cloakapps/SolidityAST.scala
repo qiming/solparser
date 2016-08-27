@@ -79,10 +79,13 @@ object SolidityAST
   sealed trait TypeName
   // ElementaryTypeName = 'address' | 'bool' | 'string' | 'var' | Int | Uint | Byte | Fixed | Ufixed
   sealed trait ElementaryTypeName extends TypeName // \kl: maybe it's better to introduce a tag
+  case object ElementaryType extends ElementaryTypeName
+
   // Mapping = 'mapping' '(' ElementaryTypeName '=>' TypeName ')'
   case class Mapping(elemType: ElementaryTypeName, typeName: TypeName) extends TypeName
   // ArrayTypeName = TypeName StorageLocation? '[' Expression? ']'
-  case class ArrayTypeName(typeName: TypeName, loc: Option[StorageLocation], exps: List[Expression]) extends TypeName
+  case class ArrayTypeName(typeName: TypeName, loc: Option[StorageLocation], exp: Option[Expression]) extends TypeName
+  // Note: This is just for convenience: Identifier StorageLocation?
   case class StorageLocationTypeName(id: Identifier, loc: Option[StorageLocation]) extends TypeName // \kl: can't find this in BNF
 
   // StorageLocation = 'memory' | 'storage'

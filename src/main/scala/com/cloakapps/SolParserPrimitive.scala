@@ -115,8 +115,13 @@ object SolParserPrimitive {
     b <- whiteSpaces
   } yield a::b
 
+  def spaceString(s: String):Parser[String] = for {
+  	_ <- whiteSpace1
+  	str <- string(s)
+  } yield str
+
   def sep(separator:String):Parser[String] = for {
-	_ <- whiteSpaces
+    _ <- whiteSpaces
     s <- string(separator)
     _ <- whiteSpaces
   } yield s
