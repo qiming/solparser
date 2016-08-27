@@ -116,7 +116,7 @@ object SolParserPrimitive {
   } yield a::b
 
   def sep(separator:String):Parser[String] = for {
-      _ <- whiteSpaces
+	_ <- whiteSpaces
     s <- string(separator)
     _ <- whiteSpaces
   } yield s

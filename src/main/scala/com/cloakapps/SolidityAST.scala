@@ -167,12 +167,16 @@ object SolidityAST
 	  | Expression? (',' Expression)
 	  | PrimaryExpression
   */
+  // Note: BNF bug: The NewExpression should be included in Expression
   sealed trait Expression
 
   // '(' Expression ')'
-  case class BracedExpression(exp: Expression) extends Expression
+  case class EnclosedExpression(exp: Expression) extends Expression
   // Identifier '(' Expression? ( ',' Expression )* ')'
   case class FunctionCall(name: Identifier, args: List[Expression]) extends Expression
+  // Note: BNF bug: FunctionCall is not enough to capture "recipient[1].address.value(10000).call()"
+  // MethodCall = Expression '.' Identifier '(' Expression? ( ',' Expression )* ')'
+  case class MethodCall(obj: Expression, name: Identifier, args: List[Expression]) extends Expression
   // 'new' Identifier
   case class NewExpression(id: Identifier) extends Expression
   // 'delete' Expression

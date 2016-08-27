@@ -175,13 +175,27 @@ object SolParser {
 
   def primaryExpression:Parser[Expression] = anyAttempt(List(identifierExpr, booleanLiteral, numberLiteral, stringLiteralExpr))
 
-  def bracedExpr:Parser[Expression] = for {
+  def enclosedExpression:Parser[Expression] = for {
     _ <- sep("(")
     exp <- expression
     _ <- sep(")")
-  } yield exp
+  } yield EnclosedExpression(exp)
 
-  def functionCall:Parser[Expression] = empty // TODO
+  def functionCall:Parser[Expression] = for {
+  	name <- identifier
+  	_ <- sep("(")
+    args <- interleave(expression)(sep(","))
+  	_ <- sep(")")
+  } yield FunctionCall(name, args)
+
+  def methodCall:Parser[Expression] = for {
+    obj <- expression
+    _ <- char('.')
+    name <- identifier
+    _ <- sep("(")
+    args <- interleave(expression)(sep(","))
+    _ <- sep(")")
+  } yield MethodCall(obj, name, args)
 
   def newExpression:Parser[Expression] = for {
     _ <- string("new")
@@ -193,7 +207,7 @@ object SolParser {
     _ <- string("delete")
     _ <- many1(whiteSpace)
     exp <- expression
-  } yield exp
+  } yield DeleteExpression(exp)
 
   def memberAccess:Parser[Expression] = for {
     exp <- expression
@@ -243,7 +257,7 @@ object SolParser {
   	case "-" => UnaryMinus(exp)
   }
 
-  def unaryOperation:Parser[Expression] = anyAttempt(List(prefixUnaryOp, postfixUnaryOperation))
+  def unaryOperation:Parser[Expression] = anyAttempt(List(prefixUnaryOperation, postfixUnaryOperation))
 
   def binaryOperation:Parser[Expression] = for {
   	lhs <- expression
@@ -290,7 +304,8 @@ object SolParser {
 
   def ternaryExpression:Parser[Expression] = ifThenElse
 
-  def expression:Parser[Expression] = anyAttempt(List(postfixUnaryOperation, functionCall, indexAccess, memberAccess, bracedExpr,
+  def expression:Parser[Expression] = anyAttempt(List(
+  	functionCall, methodCall, indexAccess, memberAccess, enclosedExpression, delExpression, newExpression, 
   	unaryOperation, binaryOperation, ternaryExpression, comma, primaryExpression)) 
 
 }
