@@ -364,9 +364,20 @@ object SolParser {
     id <- identifier
   } yield VariableDeclaration(name, id)
 
+  // block
+  def blockStatement:Parser[Block] = for {
+    _ <- sep("{")
+    stmt <- many(statement)
+    _ <- sep("}")
+  } yield BlockStatement(stmt)
+
+  def block:Parser[Statement] = for {
+    b <- blockStatement
+  } yield b
+
   // statements
 
-  def statement:Parser[Statement] = empty // TODO
+  def statement:Parser[Statement] = anyAttempt(List(ifStatement, whileStatement, forStatement, block, placeHolderStatement, semicolonStatement))
 
   def ifStatement:Parser[Statement] = {
     def elseStmt:Parser[Statement] = for {
@@ -393,4 +404,67 @@ object SolParser {
     body <- statement
   } yield WhileStatement(cond, body)
 
+  def variableDefinition:Parser[VariableDefinition] = {
+    def variableAssignment:Parser[Expression] = for {
+      _ <- sep("=")
+      exp <- expression
+    } yield exp
+
+    for {
+      decl <- variableDeclaration
+      assign <- optional(variableAssignment)
+    } yield VariableDefinition(decl, toOption(assign))
+  }
+
+  def expressionStatement:Parser[Statement] = for {
+    exp <- expression
+  } yield ExpressionStatement(exp)
+
+  def simpleStatement:Parser[Statement] = for {
+    x <- varDefOrExpression
+  } yield SimpleStatement(x)
+
+  def varDefOrExpression:Parser[VarDefOrExpression] = for {
+    x <- either1(variableDefinition)(expression)
+  } yield toEither(x) 
+
+  def forStatement:Parser[Statement] = for {
+    _ <- string("for")
+    _ <- sep("(")
+    initStmt <- optional(varDefOrExpression)
+    _ <- sep(";")
+    cond <- optional(expression)
+    _ <- sep(";")
+    step <- optional(expression)
+    _ <- sep(")")
+    body <- statement
+  } yield ForStatement(toOption(initStmt), toOption(cond), toOption(step), body)
+
+  def placeHolderStatement:Parser[Statement] = for {
+    _ <- char('_')
+  } yield PlaceHolderStatement
+
+  def continueStatement:Parser[Statement] = for {
+    _ <- string("continue")
+  } yield ContinueStatement
+
+  def breakStatement:Parser[Statement] = for {
+    _ <- string("break")
+  } yield BreakStatement
+
+  def throwStatement:Parser[Statement] = for {
+    _ <- string("throw")
+  } yield ThrowStatement
+
+  def returnStatement:Parser[Statement] = for {
+    _ <- string("return")
+    _ <- whiteSpace1
+    exp <- optional(expression)
+  } yield ReturnStatement(toOption(exp))
+
+  // ( Continue | Break | Return | Throw | VariableDefinition | Expression ) ';'
+  def semicolonStatement:Parser[Statement] = for {
+    stmt <- anyAttempt(List(continueStatement, breakStatement, returnStatement, throwStatement, simpleStatement, expressionStatement))
+    _ <- sep(";")
+  } yield stmt
 }

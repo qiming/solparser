@@ -110,7 +110,9 @@ object SolidityAST
   case class UfixedType(typeName: String) extends ElementaryTypeName
 
   //  Block = '{' Statement* '}'
-  case class Block(statements: List[Statement]) // extends Statement \kl Block is not a statement
+  sealed trait Block extends Statement //\kl Block is not a statement
+  case class BlockStatement(statements: List[Statement]) extends Block // if block were not a statement we have to redefine if/while etc.
+
   // statements
   // ---- original defintion ---------
   // Statement = IfStatement | WhileStatement | ForStatement | Block | PlaceholderStatement |
@@ -131,12 +133,19 @@ object SolidityAST
   case class WhileStatement(cond: Expression, body: Statement) extends Statement
 
   // VariableDefintion = VariableDeclaration ( '=' Expression )?
-  case class VariableDefinition(decl: VariableDeclaration, exp: Option[Expression]) extends Statement 
+  case class VariableDefinition(decl: VariableDeclaration, expr: Option[Expression]) 
 
-  type SimpleStatement = Either[VariableDefinition,Expression]
-  type ExpressionStatement = Either[VariableDefinition,Expression]
-  //  'for' '(' (SimpleStatement)? ';' (Expression)? ';' (ExpressionStatement)? ')' Statement
-  case class ForStatement(init: Option[SimpleStatement], cond: Option[Expression], step: Option[ExpressionStatement], body: Statement) extends Statement
+  // type for SimpleStatement. this is needed by the ForStatement
+  type VarDefOrExpression = Either[VariableDefinition,Expression]
+  // a case class for SimpleStatement, needed by Statement
+  case class SimpleStatement(body: Either[VariableDefinition,Expression]) extends Statement
+
+  case class ExpressionStatement(expr: Expression) extends Statement
+
+  // ForStatement = 
+  //  -- original -- 'for' '(' (SimpleStatement)? ';' (Expression)? ';' (ExpressionStatement)? ')' Statement
+  //  -- written  -- 'for' '(' (SimpleStatement)? ';' (Expression)? ';' (Expression)? ')' Statement
+  case class ForStatement(init: Option[VarDefOrExpression], cond: Option[Expression], step: Option[Expression], body: Statement) extends Statement
 
   // PlaceholderStatement = '_'
   case object PlaceHolderStatement extends Statement

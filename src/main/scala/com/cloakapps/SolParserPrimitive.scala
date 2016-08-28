@@ -147,6 +147,11 @@ object SolParserPrimitive {
     case \/-(_)  => None   // right
   }
 
+  def toEither[A,B](a: \/[A,B]): Either[A,B] = a match {
+    case -\/(x) => Left(x) 
+    case \/-(x) => Right(x)   
+  }
+
   def any[A](parsers: List[Parser[A]]):Parser[A] = parsers.reduceLeft((a,b) => +++(a)(b))
   def anyAttempt[A](parsers: List[Parser[A]]):Parser[A] = parsers.reduceLeft((a,b) => +++(attempt(a))(attempt(b)))
 }
