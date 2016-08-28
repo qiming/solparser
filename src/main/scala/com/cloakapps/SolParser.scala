@@ -317,17 +317,37 @@ object SolParser {
 
   def typeName:Parser[TypeName] = anyAttempt(List(elementaryTypeName, storageLocationTypeName, mapping, arrayTypeName))
 
-  def addressType:Parser[ElementaryTypeName] = for { _ <- spaceString("address") } yield AddressType
+  def addressType:Parser[ElementaryTypeName] = for { _ <- string("address") } yield AddressType
+  def boolType:Parser[ElementaryTypeName] = for { _ <- string("bool") } yield BoolType
+  def stringType:Parser[ElementaryTypeName] = for { _ <- string("string") } yield StringType
+  def varType:Parser[ElementaryTypeName] = for { _ <- string("var") } yield VarType
+  def intType:Parser[ElementaryTypeName] = for { s <- prefixed(string("int"))(digits) } yield IntType(s)
+  def uintType:Parser[ElementaryTypeName] = for { s <- prefixed(string("uint"))(digits) } yield UintType(s)
+  def byteType:Parser[ElementaryTypeName] = for { s <- prefixed(string("byte"))(prefixed(string("s"))(digits)) } yield ByteType(s)
+  def fixedType:Parser[ElementaryTypeName] = for { s <- prefixed(string("fixed"))(xdigits) } yield FixedType(s)
+  def ufixedType:Parser[ElementaryTypeName] = for { s <- prefixed(string("ufixed"))(xdigits) } yield UfixedType(s)
 
-  def elementaryType:Parser[ElementaryTypeName] = anyAttempt(List(addressType)) // TODO
+  def elementaryType:Parser[ElementaryTypeName] = 
+    anyAttempt(List(addressType,boolType,stringType,varType, intType, uintType, byteType, fixedType, ufixedType)) 
 
   def elementaryTypeName:Parser[TypeName] = for {
     _ <- elementaryType
   } yield ElementaryType
 
-  def storageLocationTypeName:Parser[TypeName] = empty // TODO
+  def storageLocationTypeName:Parser[TypeName] = for {
+    id <- identifier
+    _ <- whiteSpace1
+    loc <- optional(storageLocation)
+  } yield StorageLocationTypeName(id, toOption(loc))
 
-  def mapping:Parser[TypeName] = empty // TODO
+  def mapping:Parser[TypeName] = for {
+    _ <- string("mapping")
+    _ <- sep("(")
+    elemType <- elementaryType
+    _ <- sep("=>")
+    name <- typeName
+    _ <- sep(")")
+  } yield Mapping(elemType, name)
 
   def arrayTypeName:Parser[TypeName] = for {
     name <- typeName

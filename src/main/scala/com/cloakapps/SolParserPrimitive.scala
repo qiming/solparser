@@ -126,6 +126,22 @@ object SolParserPrimitive {
     _ <- whiteSpaces
   } yield s
 
+  def prefixed(prefix:Parser[String])(tail:Parser[String]):Parser[String] = for {
+  	(x,xs) <- seq(prefix, optional(tail))
+  } yield x + toOption(xs).getOrElse("")
+
+  def digits:Parser[String] = for {
+  	s <- many1(digit)
+	} yield s.mkString
+
+	// strings like "0x1234"
+  def xdigits:Parser[String] = for {
+  	a <- many1(digit)
+  	x <- char('x')
+  	s <- many1(digit)
+	} yield (a::x::s).mkString
+
+
   def toOption[A](a: \/[A,Unit]): Option[A] = a match {
     case -\/(x) => Some(x) // left
     case \/-(_)  => None   // right
