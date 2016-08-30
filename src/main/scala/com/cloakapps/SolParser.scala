@@ -528,11 +528,19 @@ object SolParser {
     p <- publicModifier
   } yield p
 
+  def publicAM:Parser[AccessModifier] = for {
+    p <- publicModifier
+  } yield p
+
   def internalModifier:Parser[InternalModifier] = for {
     _ <- string("internal")
   } yield InternalModifier()
 
   def internalFM:Parser[FunctionModifier] = for {
+    i <- internalModifier
+  } yield i
+
+  def internalAM:Parser[AccessModifier] = for {
     i <- internalModifier
   } yield i
 
@@ -544,6 +552,13 @@ object SolParser {
     p <- privateModifier
   } yield p
 
+  def privateAM:Parser[AccessModifier] = for {
+    p <- privateModifier
+  } yield p
+
   def functionModifier:Parser[FunctionModifier] = 
     anyAttempt(List(functionCallFM, identifierFM, constantFM, externalFM, publicFM, internalFM, privateFM))
+
+  def accessModifier:Parser[AccessModifier] = anyAttempt(List(publicAM, internalAM, privateAM))
+
 }
