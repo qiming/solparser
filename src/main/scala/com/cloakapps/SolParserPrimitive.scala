@@ -115,10 +115,13 @@ object SolParserPrimitive {
     b <- whiteSpaces
   } yield a::b
 
-  def spaceString(s: String):Parser[String] = for {
-  	_ <- whiteSpace1
-  	str <- string(s)
-  } yield str
+  // a prefixed by one or more spaces
+  def spaceSeq[A](pa: Parser[A]):Parser[A] = for {
+  	(a,b) <- seq(whiteSpace1, pa)
+  } yield b
+
+  // string prefixed by one or more spaces
+  def spaceString(s: String):Parser[String] = spaceSeq(string(s))
 
   def sep(separator:String):Parser[String] = for {
     _ <- whiteSpaces
@@ -146,6 +149,8 @@ object SolParserPrimitive {
     case -\/(x) => Some(x) // left
     case \/-(_)  => None   // right
   }
+
+  def isPresent[A](a: \/[A,Unit]): Boolean = toOption(a) == None
 
   def toEither[A,B](a: \/[A,B]): Either[A,B] = a match {
     case -\/(x) => Left(x) 

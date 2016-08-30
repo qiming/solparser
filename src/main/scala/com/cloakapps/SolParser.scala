@@ -179,12 +179,16 @@ object SolParser {
     _ <- sep(")")
   } yield EnclosedExpression(exp)
 
-  def functionCall:Parser[Expression] = for {
+  def functionCallExpr:Parser[FunctionCallExpr] = for {
   	name <- identifier
   	_ <- sep("(")
     args <- interleave(expression)(sep(","))
   	_ <- sep(")")
-  } yield FunctionCall(name, args)
+  } yield FunctionCallExpr(name, args)
+
+  def functionCall:Parser[Expression] = for {
+    f <- functionCallExpr
+  } yield f
 
   def methodCall:Parser[Expression] = for {
     obj <- expression
@@ -467,4 +471,79 @@ object SolParser {
     stmt <- anyAttempt(List(continueStatement, breakStatement, returnStatement, throwStatement, simpleStatement, expressionStatement))
     _ <- sep(";")
   } yield stmt
+
+  // parameter/list
+
+  def parameter:Parser[Parameter] = for {
+    typeName <- typeName   
+    indexed <- optional(spaceString("indexed"))
+    id <- optional(spaceSeq(identifier))
+  } yield Parameter(typeName, toOption(id), isPresent(indexed))
+
+  def parameterList:Parser[ParameterList] = for {
+    _ <- char('(')
+    params <- interleave(parameter)(sep(","))
+    _ <- char(')')
+  } yield ParameterList(params)
+
+  // function modifiers
+
+  def functionCallModifier:Parser[FunctionCallModifier] = for {
+    f <- functionCallExpr
+  } yield FunctionCallModifier(f)
+
+  def functionCallFM:Parser[FunctionModifier] = for {
+    f <- functionCallModifier
+  } yield f
+
+  def identifierModifier:Parser[IdentifierModifier] = for {
+    id <- identifier
+  } yield IdentifierModifier(id)
+
+  def identifierFM:Parser[FunctionModifier] = for {
+    id <- identifierModifier
+  } yield id
+
+  def constantModifier:Parser[ConstantModifier] = for {
+    _ <- string("constant")
+  } yield ConstantModifier()
+
+  def constantFM:Parser[FunctionModifier] = for {
+    c <- constantModifier
+  } yield c
+
+  def externalModifier:Parser[ExternalModifier] = for {
+    _ <- string("external")
+  } yield ExternalModifier()
+
+  def externalFM:Parser[FunctionModifier] = for {
+    e <- externalModifier
+  } yield e
+
+  def publicModifier:Parser[PublicModifier] = for {
+    _ <- string("public")
+  } yield PublicModifier()
+
+  def publicFM:Parser[FunctionModifier] = for {
+    p <- publicModifier
+  } yield p
+
+  def internalModifier:Parser[InternalModifier] = for {
+    _ <- string("internal")
+  } yield InternalModifier()
+
+  def internalFM:Parser[FunctionModifier] = for {
+    i <- internalModifier
+  } yield i
+
+  def privateModifier:Parser[PrivateModifier] = for {
+    _ <- string("private")
+  } yield PrivateModifier()
+
+  def privateFM:Parser[FunctionModifier] = for {
+    p <- privateModifier
+  } yield p
+
+  def functionModifier:Parser[FunctionModifier] = 
+    anyAttempt(List(functionCallFM, identifierFM, constantFM, externalFM, publicFM, internalFM, privateFM))
 }

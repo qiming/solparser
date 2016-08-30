@@ -50,30 +50,26 @@ object SolidityAST
   case class EnumDefinition(id: Identifier, vals:List[EnumValue]) extends ContractPart
   type EnumValue = Identifier
 
-  sealed trait AccessModifier
-  case object PublicAM extends AccessModifier
-  case object PrivateAM extends AccessModifier
-  case object InheritableAM extends AccessModifier
+  sealed trait AccessModifier 
+  sealed trait FunctionModifier  // Not sure whether can be merged with AccessModifier? TODO
 
-  
+  case class PublicModifier() extends AccessModifier with FunctionModifier
+  case class InternalModifier() extends AccessModifier with FunctionModifier
+  case class PrivateModifier() extends AccessModifier with FunctionModifier
+
+	case class FunctionCallModifier(call: FunctionCallExpr) extends FunctionModifier
+	case class IdentifierModifier(id:Identifier) extends FunctionModifier
+	case class ConstantModifier() extends FunctionModifier
+	case class ExternalModifier() extends FunctionModifier
 
   // VariableDeclaration = TypeName Identifier
   case class  VariableDeclaration(typeName:TypeName, id:Identifier)
 
-	sealed trait FunctionModifier  // Not sure whether can be merged with AccessModifier? TODO
-	case class FunctionCallFM(call: FunctionCall) extends FunctionModifier
-	case class IdentifierFM(id:Identifier) extends FunctionModifier
-	case object ConstantFM extends FunctionModifier
-	case object ExternalFM extends FunctionModifier
-	case object PublicFM extends FunctionModifier
-	case object InheritableFM extends FunctionModifier
-	case object PrivateFM extends FunctionModifier
-
-	sealed trait Parameter
   // IndexedParameterList = '(' ( TypeName 'indexed'? Identifier? (',' TypeName 'indexed'? Identifier?)* )? ')'
   // ParameterList =        '(' ( TypeName            Identifier? (',' TypeName            Identifier?)* )? ')'
-  case class IndexedParam(typeName: TypeName, id: Identifier, indexed: Boolean) extends Parameter
-  // Note: The above definition of IndexParamList and ParameterList look redundant.
+  case class Parameter(typeName: TypeName, id: Option[Identifier], indexed: Boolean) 
+  // Note: The above definition of IndexParameterList and ParameterList look redundant.
+  case class ParameterList(list: List[Parameter]) 
 
   // TypeName = ElementaryTypeName | Identifier StorageLocation? | Mapping | ArrayTypeName
   sealed trait TypeName
@@ -185,7 +181,8 @@ object SolidityAST
   // '(' Expression ')'
   case class EnclosedExpression(exp: Expression) extends Expression
   // Identifier '(' Expression? ( ',' Expression )* ')'
-  case class FunctionCall(name: Identifier, args: List[Expression]) extends Expression
+  sealed trait FunctionCall extends Expression
+  case class FunctionCallExpr(name: Identifier, args: List[Expression]) extends FunctionCall
   // Note: BNF bug: FunctionCall is not enough to capture "recipient[1].address.value(10000).call()"
   // MethodCall = Expression '.' Identifier '(' Expression? ( ',' Expression )* ')'
   case class MethodCall(obj: Expression, name: Identifier, args: List[Expression]) extends Expression
