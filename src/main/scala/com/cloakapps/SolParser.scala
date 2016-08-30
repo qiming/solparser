@@ -561,4 +561,13 @@ object SolParser {
 
   def accessModifier:Parser[AccessModifier] = anyAttempt(List(publicAM, internalAM, privateAM))
 
+  def enumValue:Parser[EnumValue] = identifier
+
+  def enumDefinition:Parser[EnumDefinition] = for {
+    _ <- string("enum")
+    id <- spaceSeq(identifier) 
+    _ <- sep("{")
+    values <- interleave(enumValue)(sep(","))
+    _ <- sep("}")
+  } yield EnumDefinition(id, values)
 }
