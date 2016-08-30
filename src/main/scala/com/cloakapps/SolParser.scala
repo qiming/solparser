@@ -595,6 +595,7 @@ object SolParser {
       params <- parameterList
       modifiers <- optional(interleave(functionModifier)(whiteSpace1))
       returns <- optional(returns)
+      _ <- whiteSpaces
       body <- blockStatement
     } yield FunctionDefinition(toOption(id), 
                                params, 
@@ -603,4 +604,21 @@ object SolParser {
                                body)
   }
 
+  def modifierDefinition:Parser[ContractPart] = for {
+    _ <- string("modifier")
+    _ <- whiteSpace1
+    id <- identifier
+    params <- optional(spaceSeq(parameterList))
+    _ <- whiteSpaces
+    block <- blockStatement
+  } yield ModifierDefinition(id, toOption(params).getOrElse(ParameterList(List())), block)
+
+  def structDefinition:Parser[ContractPart] = for {
+    _ <- string("struct")
+    _ <- whiteSpace1
+    id <- identifier
+    _ <- sep("{")
+    vars <- many(seq(variableDeclaration, sep(";")))
+    _ <- sep("}")
+  } yield StructDefinition(id, vars.map(_._1))
 }
