@@ -37,14 +37,14 @@ object SolidityAST
   // StructDefinition = 'struct' Identifier '{' ( VariableDeclaration ';' (VariableDeclaration ';')* )? '}'
   case class StructDefinition(id:Identifier, varDecls:List[VariableDeclaration]) extends ContractPart
   // ModifierDefinition = 'modifier' Identifier ParameterList? Block
-  case class ModifierDefinition(id:Identifier, paras:List[Parameter],block:Block) extends ContractPart 
+  case class ModifierDefinition(id:Identifier, paras:ParameterList, block:Block) extends ContractPart 
   // FunctionDefinition = 'function' Identifier? ParameterList
   // ( FunctionCall | Identifier | 'constant' | 'external' | 'public' | 'internal' | 'private' )*
   // ( 'returns' ParameterList )? Block
-  case class FunctionDefinition(id:Option[Identifier], paras:List[Parameter],funcMod:List[FunctionModifier], retParas:List[Parameter], block:Block) extends ContractPart
+  case class FunctionDefinition(id:Option[Identifier], paras:ParameterList, funcMod:List[FunctionModifier], retParas:ParameterList, block:Block) extends ContractPart
 
   // EventDefinition = 'event' Identifier IndexedParameterList 'anonymous'? ';'
-  case class EventDefinition(id: Identifier, params: List[Parameter], anonymous: Boolean) extends ContractPart
+  case class EventDefinition(id: Identifier, params: ParameterList, anonymous: Boolean) extends ContractPart
 
   // EnumDefinition = 'enum' Identifier '{' EnumValue? (',' EnumValue)* '}'
   case class EnumDefinition(id: Identifier, vals:List[EnumValue]) extends ContractPart

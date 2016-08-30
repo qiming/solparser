@@ -561,13 +561,46 @@ object SolParser {
 
   def accessModifier:Parser[AccessModifier] = anyAttempt(List(publicAM, internalAM, privateAM))
 
+  // contract parts
+
   def enumValue:Parser[EnumValue] = identifier
 
-  def enumDefinition:Parser[EnumDefinition] = for {
+  def enumDefinition:Parser[ContractPart] = for {
     _ <- string("enum")
     id <- spaceSeq(identifier) 
     _ <- sep("{")
     values <- interleave(enumValue)(sep(","))
     _ <- sep("}")
   } yield EnumDefinition(id, values)
+
+  def eventDefinition:Parser[ContractPart] = for {
+    _ <- string("event")
+    id <- spaceSeq(identifier) 
+    params <- spaceSeq(parameterList)
+    anon <- optional(spaceString("anonymous"))
+    _ <- sep(";") 
+  } yield EventDefinition(id, params, isPresent(anon))
+
+  def functionDefinition:Parser[ContractPart] = {
+    def returns:Parser[ParameterList] = for {
+      _ <- whiteSpace1
+      _ <- string("returns")
+      _ <- whiteSpace1
+      params <- parameterList
+    } yield params
+
+    for {
+      _ <- string("function") 
+      id <- optional(spaceSeq(identifier))
+      params <- parameterList
+      modifiers <- optional(interleave(functionModifier)(whiteSpace1))
+      returns <- optional(returns)
+      body <- blockStatement
+    } yield FunctionDefinition(toOption(id), 
+                               params, 
+                               toOption(modifiers).getOrElse(List()), 
+                               toOption(returns).getOrElse(ParameterList(List())), 
+                               body)
+  }
+
 }
