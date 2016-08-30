@@ -150,6 +150,16 @@ object SolParserPrimitive {
     case \/-(_)  => None   // right
   }
 
+  def toOptionLeft[A,B](a: \/[A,B]): Option[A] = a match {
+    case -\/(x) => Some(x) // left
+    case \/-(_)  => None   // right
+  }
+
+  def toOptionRight[A,B](a: \/[A,B]): Option[B] = a match {
+    case -\/(_) => None 			// left
+    case \/-(x)  => Some(x)   // right
+  }
+
   def isPresent[A](a: \/[A,Unit]): Boolean = toOption(a) == None
 
   def toEither[A,B](a: \/[A,B]): Either[A,B] = a match {

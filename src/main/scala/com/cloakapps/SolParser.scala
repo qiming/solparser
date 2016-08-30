@@ -621,4 +621,29 @@ object SolParser {
     vars <- many(seq(variableDeclaration, sep(";")))
     _ <- sep("}")
   } yield StructDefinition(id, vars.map(_._1))
+
+  def usingForDeclaration:Parser[ContractPart] = for {
+    _ <- string("struct")
+    _ <- whiteSpace1
+    id <- identifier
+    _ <- whiteSpace1
+    _ <- string("for") 
+    _ <- whiteSpace1
+    typeNameOrWildcard <- either1(typeName)(char('*'))
+    _ <- spaceString(";")
+  } yield UsingForDeclaration(id, toOptionLeft(typeNameOrWildcard))
+
+  def stateVariableDeclaration:Parser[ContractPart] = for {
+    typeName <- typeName
+    am <- optional(spaceSeq(accessModifier))
+    id <- spaceSeq(identifier)
+    exp <- optional(seq(sep("="), expression))
+    _ <- whiteSpaces
+    _ <- char(';')
+  } yield StateVariableDeclaration(typeName, toOption(am), id, toOption(exp).map(_._2))
+
+  def contractPart:Parser[ContractPart] = 
+    anyAttempt(List(stateVariableDeclaration, usingForDeclaration, 
+                    structDefinition, modifierDefinition, functionDefinition, 
+                    eventDefinition, enumDefinition))
 }

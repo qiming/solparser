@@ -31,7 +31,7 @@ object SolidityAST
   // | StructDefinition | ModifierDefinition | FunctionDefinition | EventDefinition | EnumDefinition
   sealed trait ContractPart
   // StateVariableDeclaration = TypeName ( 'public' | 'internal' | 'private' )? Identifier ('=' Expression)? ';'
-  case class StateVariableDeclaration(typeName:TypeName,accessMod:Option[AccessModifier],id:Identifier, exp: Expression) extends ContractPart
+  case class StateVariableDeclaration(typeName:TypeName,accessMod:Option[AccessModifier],id:Identifier, exp: Option[Expression]) extends ContractPart
   // UsingForDeclaration = 'using' Identifier 'for' ('*' | TypeName) ';'
   case class UsingForDeclaration(id: Identifier, wildcardOrName: Option[TypeName]) extends ContractPart
   // StructDefinition = 'struct' Identifier '{' ( VariableDeclaration ';' (VariableDeclaration ';')* )? '}'
