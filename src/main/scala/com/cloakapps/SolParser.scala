@@ -179,11 +179,18 @@ object SolParser {
     _ <- sep(")")
   } yield EnclosedExpression(exp)
 
+  def functionCallArgs:Parser[List[Expression]] = for {
+    _ <- whiteSpaces
+    _ <- char('(')
+    _ <- whiteSpaces
+    args <- interleave(expression)(sep(","))
+    _ <- whiteSpaces
+    _ <- char(')')
+  } yield args
+
   def functionCallExpr:Parser[FunctionCallExpr] = for {
   	name <- identifier
-  	_ <- sep("(")
-    args <- interleave(expression)(sep(","))
-  	_ <- sep(")")
+    args <- functionCallArgs
   } yield FunctionCallExpr(name, args)
 
   def functionCall:Parser[Expression] = for {
@@ -646,4 +653,10 @@ object SolParser {
     anyAttempt(List(stateVariableDeclaration, usingForDeclaration, 
                     structDefinition, modifierDefinition, functionDefinition, 
                     eventDefinition, enumDefinition))
+
+  // inheritance spec
+  def inheritanceSpecifier:Parser[InheritanceSpecifier] = for {
+    name <- identifier
+    args <- optional(functionCallArgs)
+  } yield InheritanceSpecifier(name, toOption(args).getOrElse(List()))
 }

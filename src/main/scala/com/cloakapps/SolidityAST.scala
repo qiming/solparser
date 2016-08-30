@@ -26,6 +26,10 @@ object SolidityAST
 
   // InheritanceSpecifier = Identifier ( '(' Expression ( ',' Expression )* ')' )?
   case class InheritanceSpecifier(id:Identifier,exps:List[Expression]) // have no idea what is this yet. can give an example?
+  // The inheritance specifier is just like a constructor call. example:
+  //    contract PriceFeed is owned, mortal, named("GoldFeed") { ... }
+  // where owned, mortal and named are all contract themselves, and the "named" contract has a function defined as below:
+  //    function named(string32 name) { ... }
 
   // ContractPart = StateVariableDeclaration | UsingForDeclaration
   // | StructDefinition | ModifierDefinition | FunctionDefinition | EventDefinition | EnumDefinition
