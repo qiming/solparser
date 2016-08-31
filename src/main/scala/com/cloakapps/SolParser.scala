@@ -27,6 +27,7 @@ object SolParser {
   } yield tokens.length
 
   def sourceUnit:Parser[SourceUnit] = for {
+    _     <- whiteSpaces
     units <- many(either1(importDirective)(contractDefinition))
   } yield units.map(toEither(_))
 
