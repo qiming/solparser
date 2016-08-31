@@ -26,7 +26,9 @@ object SolParser {
     tokens <- getState
   } yield tokens.length
 
-  def sourceUnit:Parser[SourceUnit] = point(Nil) // TODO
+  def sourceUnit:Parser[SourceUnit] = for {
+    units <- many(either1(importDirective)(contractDefinition))
+  } yield units.map(toEither(_))
 
   def importDirective:Parser[ImportDirective] = +++(attempt(simpleImport))(+++(attempt(fromImport))(multipleImport))
 
@@ -654,7 +656,8 @@ object SolParser {
                     structDefinition, modifierDefinition, functionDefinition, 
                     eventDefinition, enumDefinition))
 
-  // inheritance spec
+  // contract definition
+
   def inheritanceSpecifier:Parser[InheritanceSpecifier] = for {
     name <- identifier
     args <- optional(functionCallArgs)

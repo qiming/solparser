@@ -40,6 +40,9 @@ object SolidityAST
   case class UsingForDeclaration(id: Identifier, wildcardOrName: Option[TypeName]) extends ContractPart
   // StructDefinition = 'struct' Identifier '{' ( VariableDeclaration ';' (VariableDeclaration ';')* )? '}'
   case class StructDefinition(id:Identifier, varDecls:List[VariableDeclaration]) extends ContractPart
+  // Note: Looks like the above is just:
+  // StructDefinition = 'struct' Identifier '{' ( VariableDeclaration ';' )* '}'
+
   // ModifierDefinition = 'modifier' Identifier ParameterList? Block
   case class ModifierDefinition(id:Identifier, paras:ParameterList, block:Block) extends ContractPart 
   // FunctionDefinition = 'function' Identifier? ParameterList
@@ -302,6 +305,12 @@ object SolidityAST
   case object False extends BooleanLiteral
   //  NumberLiteral = '0x'? [0-9]+ (' ' NumberUnit)?
   case class NumberLiteral(value: String, unit: Option[NumberUnit]) extends PrimaryExpression
+
+  // ref: http://solidity.readthedocs.io/en/latest/types.html?highlight=string%20literal#string-literals
+  // String literals start and end with either a single or a double quote, 
+  // and escape sequences are of the form: \\n, \\xNN and \\uNNNN (single backslash)
+  // There's a hex literal type like string in the form of hex"00ff"
+  // TODO: The following definition has to be re-written.
   //  StringLiteral = '"' ([^"\r\n\\] | '\\' .)* '"'
   type StringLiteral = String
   case class StringLiteralExpr(value: String) extends PrimaryExpression
