@@ -127,10 +127,15 @@ object SolParser {
     s <- identifier
   } yield IdentifierExpr(s)
 
+    // def escaped(c:Char):Parser[String] = for {
+    //   e <- many(anyAttempt(List(string("\\c"), string("\\x"))))
+    // } yield e
+
+
   def stringLiteral:Parser[StringLiteral] = for {
-    _ <- sat(x => x == ''' || x == '"')
-    cs <- many(sat(x => x != '\r' && x != '\n' && x != '"' && x != ''')) // TODO , exclude \\a , handle escape
-    _ <- sat(x => x == ''' || x == '"')
+      open <- sat(x => x == '\'' || x == '"')
+      cs <- many(sat(x => x != '\r' && x != '\n' && x != '"' && x != ''')) // TODO , exclude \\a , handle escape
+      _ <- char(open)
   } yield cs.mkString
 
   def stringLiteralExpr:Parser[Expression] = for {

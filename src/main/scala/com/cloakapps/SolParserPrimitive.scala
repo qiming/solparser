@@ -137,13 +137,27 @@ object SolParserPrimitive {
   	s <- many1(digit)
 	} yield s.mkString
 
+	def hexChar:Parser[Char] = sat(x => x.isDigit || (x >= 'a' && x <= 'z') || (x >= 'A' && x <= 'Z'))
+
+	def hex:Parser[String] = {
+		def hexByte:Parser[List[Char]] = for {
+			first <- hexChar
+			second <- hexChar
+		} yield List(first,second)
+
+		for {
+			x <- many(hexByte)
+		} yield x.flatMap(x => x).mkString
+	}
+
+	//def unicodeChar:Parser[String] = anyAttempt(prefix(string("\\x"))())
+
 	// strings like "0x1234"
   def xdigits:Parser[String] = for {
   	a <- many1(digit)
   	x <- char('x')
   	s <- many1(digit)
 	} yield (a::x::s).mkString
-
 
   def toOption[A](a: \/[A,Unit]): Option[A] = a match {
     case -\/(x) => Some(x) // left
