@@ -659,4 +659,25 @@ object SolParser {
     name <- identifier
     args <- optional(functionCallArgs)
   } yield InheritanceSpecifier(name, toOption(args).getOrElse(List()))
+
+  def contractDefinition:Parser[ContractDefinition] = {
+    def inheritance:Parser[List[InheritanceSpecifier]] = for {
+      _ <- whiteSpace1
+      _ <- string("is")
+      _ <- whiteSpace1
+      list <- interleave(inheritanceSpecifier)(sep(","))
+    } yield list
+
+    for {
+      defType <- any(List(string("library"), string("contract")))
+      _ <- whiteSpace1
+      id <- identifier
+      inheritance <- optional(inheritance)
+      parts <- many(contractPart)
+      _ <- sep("}")
+    } yield defType match {
+      case "library" => LibraryDef(id, toOption(inheritance).getOrElse(List()), parts)
+      case "contract" => ContractDef(id, toOption(inheritance).getOrElse(List()), parts)
+    }
+  }
 }
