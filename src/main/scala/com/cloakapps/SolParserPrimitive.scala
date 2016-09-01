@@ -137,20 +137,21 @@ object SolParserPrimitive {
   	s <- many1(digit)
 	} yield s.mkString
 
+	// repeat pa exactly n times.
+	def repeat[A](n:Int)(pa:Parser[A]):Parser[List[A]] = 
+		if (n <= 0) point(List())
+		else for {
+			x <- pa
+			xs <- repeat(n-1)(pa)
+		} yield x::xs
+
 	def hexChar:Parser[Char] = sat(x => x.isDigit || (x >= 'a' && x <= 'z') || (x >= 'A' && x <= 'Z'))
 
 	def hex:Parser[String] = {
-		def hexByte:Parser[List[Char]] = for {
-			first <- hexChar
-			second <- hexChar
-		} yield List(first,second)
-
 		for {
-			x <- many(hexByte)
+			x <- many(repeat(2)(hexChar))
 		} yield x.flatMap(x => x).mkString
 	}
-
-	//def unicodeChar:Parser[String] = anyAttempt(prefix(string("\\x"))())
 
 	// strings like "0x1234"
   def xdigits:Parser[String] = for {

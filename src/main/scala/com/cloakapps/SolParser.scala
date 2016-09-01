@@ -10,16 +10,23 @@ import com.cloakapps.SolidityAST._
   * Created by Qiming Li on 8/20/2016.
   */
 object SolParser {
+  /*
+   * To test a specific parser in console:
+   *
+   * import com.cloakapps._;  import SolParser._; import SolParserPrimitive._
+   * 
+   * parse(stringLiteral)("'abc'")
+   */
 
-  def parseSol(x:String):Result[Option[(SourceUnit,List[Token])]] =
-  {
-    def m:Parser[SourceUnit] = for
-    {
-      su <- sourceUnit
-      _   <- eof
-    } yield (su)
+  def parse[A](pa:Parser[A])(x:String):Result[Option[(A,List[Token])]] = {
+    def m:Parser[A] = for {
+      a <- pa
+      _ <- eof
+    } yield a
     run(m)(x.toList)
   }
+
+  def parseSol(x:String):Result[Option[(SourceUnit,List[Token])]] = parse(sourceUnit)(x)
 
   def getLoc:Parser[Int] = for
   {
@@ -128,16 +135,31 @@ object SolParser {
     s <- identifier
   } yield IdentifierExpr(s)
 
-    // def escaped(c:Char):Parser[String] = for {
-    //   e <- many(anyAttempt(List(string("\\c"), string("\\x"))))
-    // } yield e
+  def hexLiteral:Parser[StringLiteral] = for {
+    _ <- string("hex")
+    open <- sat(x => x == '\'' || x == '"')
+    h <- hex
+    _ <- char(open)
+  } yield "0x" + h
 
+  def quotedLiteral:Parser[StringLiteral] = {
+    def escaped:Parser[List[Char]] = for {
+      s <- char('\\')
+      c <- item
+    } yield List(s,c)
 
-  def stringLiteral:Parser[StringLiteral] = for {
-      open <- sat(x => x == '\'' || x == '"')
-      cs <- many(sat(x => x != '\r' && x != '\n' && x != '"' && x != ''')) // TODO , exclude \\a , handle escape
-      _ <- char(open)
-  } yield cs.mkString
+    def normal(c:Char):Parser[List[Char]] = for {
+      c <- sat(x => x != '\r' && x != '\n' && x != c)
+    } yield List(c)
+
+    for {
+        open <- sat(x => x == '\'' || x == '"')
+        cs <- many(anyAttempt(List(escaped, normal(open))))
+        _ <- char(open)
+    } yield cs.flatMap(x=>x).mkString
+  }
+
+  def stringLiteral:Parser[StringLiteral] = anyAttempt(List(hexLiteral, quotedLiteral))
 
   def stringLiteralExpr:Parser[Expression] = for {
     s <- stringLiteral
