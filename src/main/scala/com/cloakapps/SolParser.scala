@@ -192,14 +192,14 @@ object SolParser {
 
   def numberUnit:Parser[NumberUnit] = for {
     _ <- whiteSpace1
-    u <- any(List(moneyUnit, timeUnit))
+    u <- anyAttempt(List(moneyUnit, timeUnit))
   } yield u
 
   def numberLiteral:Parser[Expression] = for {
-    prefix <- either1(string("0x"))(digit)
-    cs <- many(digit)
+    prefix <- optional(string("0x"))
+    cs <- many1(digit)
     maybeUnit <- optional(numberUnit)
-  } yield NumberLiteral((prefix::cs).mkString, toOption(maybeUnit))
+  } yield NumberLiteral(toOption(prefix).getOrElse("") + cs.mkString, toOption(maybeUnit))
 
   def primaryExpression:Parser[Expression] = anyAttempt(List(identifierExpr, booleanLiteral, numberLiteral, stringLiteralExpr))
 

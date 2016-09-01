@@ -108,7 +108,8 @@ object SolParserPrimitive {
     b <- pb
   } yield (a,b)
 
-  def whiteSpaces:Parser[List[Char]] = everythingUntil(!isWhiteSpace(_))
+  //def whiteSpaces:Parser[List[Char]] = everythingUntil(!isWhiteSpace(_))
+  def whiteSpaces:Parser[List[Char]] = many(whiteSpace)
 
   def whiteSpace1:Parser[List[Char]] = for {
     a <- whiteSpace
