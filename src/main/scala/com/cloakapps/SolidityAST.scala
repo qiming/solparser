@@ -197,12 +197,16 @@ object SolidityAST
   case class NewExpression(id: Identifier) extends Expression
   // 'delete' Expression
   case class DeleteExpression(exp: Expression) extends Expression
+  
   // Expression '.' Identifier
   case class MemberAccess(obj: Expression, member: Identifier) extends Expression
   // Expression '[' Expression? ']'
   case class IndexAccess(array: Expression, index: Option[Expression]) extends Expression
+
   // Expression? (',' Expression)
   case class Comma(first: Option[Expression], second: Expression) extends Expression
+  // Note: The above looks suspicious. Might be: 
+  // Expression (',' Expression)?
 
   sealed trait UnaryOperation extends Expression
   // Expression ++

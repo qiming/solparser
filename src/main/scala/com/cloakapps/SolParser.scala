@@ -156,7 +156,7 @@ object SolParser {
         open <- sat(x => x == '\'' || x == '"')
         cs <- many(anyAttempt(List(escaped, normal(open))))
         _ <- char(open)
-    } yield cs.flatMap(x=>x).mkString
+    } yield cs.flatten.mkString
   }
 
   def stringLiteral:Parser[StringLiteral] = anyAttempt(List(hexLiteral, quotedLiteral))
@@ -344,7 +344,7 @@ object SolParser {
   def ternaryExpression:Parser[Expression] = ifThenElse
 
   def expression:Parser[Expression] = anyAttempt(List(
-  	functionCall, methodCall, indexAccess, memberAccess, enclosedExpression, 
+  	functionCall, indexAccess, memberAccess, enclosedExpression, //methodCall, 
     delExpression, newExpression, unaryOperation, binaryOperation, 
     ternaryExpression, comma, primaryExpression)) 
 
