@@ -131,7 +131,7 @@ object SolParser {
     cs <- many( sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z') || x.isDigit ) )
   } yield (c::cs).mkString
 
-  def identifierExpr:Parser[Expression] = for {
+  def identifierExpr:Parser[ExpressionHead] = for {
     s <- identifier
   } yield IdentifierExpr(s)
 
@@ -161,18 +161,18 @@ object SolParser {
 
   def stringLiteral:Parser[StringLiteral] = anyAttempt(List(hexLiteral, quotedLiteral))
 
-  def stringLiteralExpr:Parser[Expression] = for {
+  def stringLiteralExpr:Parser[ExpressionHead] = for {
     s <- stringLiteral
   } yield StringLiteralExpr(s)
 
   // booleans
-  def trueLiteral:Parser[Expression] = for {
+  def trueLiteral:Parser[ExpressionHead] = for {
     _ <- string("true")
   } yield True
-  def falseLiteral:Parser[Expression] = for {
+  def falseLiteral:Parser[ExpressionHead] = for {
     _ <- string("false")
   } yield False
-  def booleanLiteral:Parser[Expression] = anyAttempt(List(trueLiteral, falseLiteral))
+  def booleanLiteral:Parser[ExpressionHead] = anyAttempt(List(trueLiteral, falseLiteral))
 
   // money units
   def wei:Parser[NumberUnit] = for { _ <- string("wei") } yield Wei
@@ -195,15 +195,15 @@ object SolParser {
     u <- anyAttempt(List(moneyUnit, timeUnit))
   } yield u
 
-  def numberLiteral:Parser[Expression] = for {
+  def numberLiteral:Parser[ExpressionHead] = for {
     prefix <- optional(string("0x"))
     cs <- many1(digit)
     maybeUnit <- optional(numberUnit)
   } yield NumberLiteral(toOption(prefix).getOrElse("") + cs.mkString, toOption(maybeUnit))
 
-  def primaryExpression:Parser[Expression] = anyAttempt(List(identifierExpr, booleanLiteral, numberLiteral, stringLiteralExpr))
+  def primaryExpression:Parser[ExpressionHead] = anyAttempt(List(identifierExpr, booleanLiteral, numberLiteral, stringLiteralExpr))
 
-  def enclosedExpression:Parser[Expression] = for {
+  def enclosedExpression:Parser[ExpressionHead] = for {
     _ <- sep("(")
     exp <- expression
     _ <- sep(")")
@@ -223,49 +223,49 @@ object SolParser {
     args <- functionCallArgs
   } yield FunctionCallExpr(name, args)
 
-  def functionCall:Parser[Expression] = for {
+  def functionCall:Parser[ExpressionHead] = for {
     f <- functionCallExpr
   } yield f
 
-  def methodCall:Parser[Expression] = for {
-    obj <- expression
-    _ <- char('.')
+  def methodCallTail:Parser[ExpressionTail] = for {
+    //obj <- expression
+    _ <- spaceString(".")
     name <- identifier
     _ <- sep("(")
     args <- interleave(expression)(sep(","))
     _ <- sep(")")
-  } yield MethodCall(obj, name, args)
+  } yield MethodCallTail(name, args)
 
-  def newExpression:Parser[Expression] = for {
+  def newExpression:Parser[ExpressionHead] = for {
     _ <- string("new")
     _ <- many1(whiteSpace)
     id <- identifier
   } yield NewExpression(id)
 
-  def delExpression:Parser[Expression] = for {
+  def delExpression:Parser[ExpressionHead] = for {
     _ <- string("delete")
     _ <- many1(whiteSpace)
     exp <- expression
   } yield DeleteExpression(exp)
 
-  def memberAccess:Parser[Expression] = for {
-    exp <- expression
-    _ <- char('.')
+  def memberAccessTail:Parser[ExpressionTail] = for {
+    //exp <- expression
+    _ <- spaceString(".")
     id <- identifier
-  } yield MemberAccess(exp, id)
+  } yield MemberAccessTail(id)
 
-  def indexAccess:Parser[Expression] = for {
-    exp <- expression
+  def indexAccessTail:Parser[ExpressionTail] = for {
+    //exp <- expression
     _ <- sep("[")
     ind <- optional(expression)
     _ <- sep("]")
-  } yield IndexAccess(exp, toOption(ind))
+  } yield IndexAccessTail(toOption(ind))
 
-  def comma:Parser[Expression] = for {
-    first <- optional(expression)
+  def commaTail:Parser[ExpressionTail] = for {
+    //first <- expression
     _ <- sep(",")
-    second <- expression
-  } yield Comma(toOption(first), second)
+    second <- optional(expression)
+  } yield CommaTail(toOption(second))
 
   def postfixUnaryOp:Parser[String] = anyAttempt(List("++", "--", ">>", "<<").map(s => string(s)))
   def prefixUnaryOp:Parser[String] = anyAttempt(List("++", "--", "!", "~", "+", "-").map(s => string(s)))
@@ -274,18 +274,20 @@ object SolParser {
   	"*=", "/=", "%=", "|=", "^=", "&=", "<<=", ">>=", "+=", "-=", 
   	"*", "/", "%", "+", "-", "&&", "||", "&", "|", "^", "=").map(s => string(s)))
 
-  def postfixUnaryOperation:Parser[Expression] = for {
-    exp <- expression
+  def postfixUnaryOperation:Parser[ExpressionTail] = for {
+    //exp <- expression
+    _ <- whiteSpaces
     op <- postfixUnaryOp
   } yield op match {
-    case "++" => IncrementPostfix(exp)
-    case "--" => DecrementPostfix(exp)
-    case "<<" => UnaryShiftLeft(exp)
-    case ">>" => UnaryShiftRight(exp)
+    case "++" => IncrementPostfixTail
+    case "--" => DecrementPostfixTail
+    case "<<" => UnaryShiftLeftTail
+    case ">>" => UnaryShiftRightTail
   }
 
-  def prefixUnaryOperation:Parser[Expression] = for {
+  def prefixUnaryOperation:Parser[ExpressionHead] = for {
   	op <- prefixUnaryOp
+    _ <- whiteSpaces
   	exp <- expression
   } yield op match {
   	case "++" => IncrementPrefix(exp)
@@ -296,57 +298,62 @@ object SolParser {
   	case "-" => UnaryMinus(exp)
   }
 
-  def unaryOperation:Parser[Expression] = anyAttempt(List(prefixUnaryOperation, postfixUnaryOperation))
+  def unaryOperation:Parser[ExpressionHead] = attempt(prefixUnaryOperation)
+  def unaryOperationTail:Parser[ExpressionTail] = attempt(postfixUnaryOperation)
 
-  def binaryOperation:Parser[Expression] = for {
-  	lhs <- expression
+  def binaryOperationTail:Parser[ExpressionTail] = for {
+  	//lhs <- expression
   	op <- binaryOp
   	rhs <- expression
   } yield op match {
-  	case "**" => Power(lhs, rhs)
-  	case "==" => EqualTo(lhs, rhs)
-  	case "!=" => NotEqual(lhs, rhs)
-  	case "<=" => LessOrEqual(lhs, rhs)
-  	case ">=" => GreaterOrEqual(lhs, rhs)
-  	case "<"  => LessThan(lhs, rhs)
-  	case ">"  => GreaterThan(lhs, rhs)
-  	case "*=" => MultiplyAssign(lhs, rhs)
-  	case "/=" => DivideAssign(lhs, rhs)
-  	case "%=" => RemainderAssign(lhs, rhs)
-  	case "|=" => BitwiseOrAssign(lhs, rhs)
-  	case "^=" => BitwiseXorAssign(lhs, rhs)
-  	case "&=" => BitwiseAndAssign(lhs, rhs)
-  	case "<<=" => LeftShiftAssign(lhs, rhs)
-  	case ">>=" => RightShiftAssign(lhs, rhs)
-  	case "+=" => PlusAssign(lhs, rhs)
-  	case "-=" => MinusAssign(lhs, rhs)
-  	case "*" => Multiply(lhs, rhs)
-  	case "/" => DivideBy(lhs, rhs)
-  	case "%" => Remainder(lhs, rhs)
-  	case "+" => Add(lhs, rhs)
-  	case "-" => Subtract(lhs, rhs)
-  	case "&&" => And(lhs, rhs)
-  	case "||" => Or(lhs, rhs)
-  	case "&" => BitwiseAnd(lhs, rhs)
-  	case "|" => BitwiseOr(lhs, rhs)
-  	case "^" => BitwiseXor(lhs, rhs)
-  	case "=" => Assign(lhs, rhs)
+  	case "**" => Power(rhs)
+  	case "==" => EqualTo(rhs)
+  	case "!=" => NotEqual(rhs)
+  	case "<=" => LessOrEqual(rhs)
+  	case ">=" => GreaterOrEqual(rhs)
+  	case "<"  => LessThan(rhs)
+  	case ">"  => GreaterThan(rhs)
+  	case "*=" => MultiplyAssign(rhs)
+  	case "/=" => DivideAssign(rhs)
+  	case "%=" => RemainderAssign(rhs)
+  	case "|=" => BitwiseOrAssign(rhs)
+  	case "^=" => BitwiseXorAssign(rhs)
+  	case "&=" => BitwiseAndAssign(rhs)
+  	case "<<=" => LeftShiftAssign(rhs)
+  	case ">>=" => RightShiftAssign(rhs)
+  	case "+=" => PlusAssign(rhs)
+  	case "-=" => MinusAssign(rhs)
+  	case "*" => Multiply(rhs)
+  	case "/" => DivideBy(rhs)
+  	case "%" => Remainder(rhs)
+  	case "+" => Add(rhs)
+  	case "-" => Subtract(rhs)
+  	case "&&" => And(rhs)
+  	case "||" => Or(rhs)
+  	case "&" => BitwiseAnd(rhs)
+  	case "|" => BitwiseOr(rhs)
+  	case "^" => BitwiseXor(rhs)
+  	case "=" => Assign(rhs)
   }
 
-  def ifThenElse:Parser[Expression] = for {
-    cond <- expression
+  def ifThenElse:Parser[ExpressionTail] = for {
+    //cond <- expression
     _ <- sep("?")
     trueClause <- expression
     _ <- sep(":")
     falseClause <- expression
-  } yield IfThenElse(cond, trueClause, falseClause)
+  } yield IfThenElse(trueClause, falseClause)
 
-  def ternaryExpression:Parser[Expression] = ifThenElse
+  def ternaryExpressionTail:Parser[ExpressionTail] = ifThenElse
 
-  def expression:Parser[Expression] = anyAttempt(List(
-  	functionCall, indexAccess, memberAccess, enclosedExpression, //methodCall, 
-    delExpression, newExpression, unaryOperation, binaryOperation, 
-    ternaryExpression, comma, primaryExpression)) 
+  def expressionHead:Parser[ExpressionHead] = anyAttempt(List(functionCall,  enclosedExpression, unaryOperation, delExpression, newExpression, prefixUnaryOperation, primaryExpression))
+
+  def expressionTail:Parser[ExpressionTail] = anyAttempt(List(indexAccessTail, memberAccessTail, methodCallTail, unaryOperationTail, binaryOperationTail, ternaryExpressionTail, commaTail))
+
+  def expression:Parser[Expression] = for {
+    head <- expressionHead
+    tail <- optional(expressionTail)
+  } yield Expression(head, toOption(tail))
 
   // storage location
 

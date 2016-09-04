@@ -183,36 +183,64 @@ object SolidityAST
 	  | PrimaryExpression
   */
   // Note: BNF bug: The NewExpression should be included in Expression
-  sealed trait Expression
+  //sealed trait Expression
+
+  // left recursion occurs for:
+  // IndexAccess, MethodCall, postfix unary operations, binary operations, comma operation
+  // Rewrite expression as
+  //   Expression = ExpressionHead ExpressionTail?
+  // where ExpressionHead are original definitions that does not cause left recursion 
+  //   ExpressionHead = FunctionCall | '(' Expression ')' | UnaryOperation
+  //     | NewExpression | DeleteExpression | PrefixUnaryOperation | PrimaryExpression
+  // and 
+  //   ExpressionTail = IndexAccessTail ExpressionTail? 
+  //     | MemberAccessTail ExpressionTail?
+  //     | MethodCallTail ExpressionTail? 
+  //     | UnaryOperationTail ExpressionTail? 
+  //     | BinaryOperationTail ExpressionTail? 
+  //     | TernaryOptionTail ExpressionTail? 
+  //     | CommaTail ExpressionTail?
+  sealed trait ExpressionHead
+  sealed trait ExpressionTail
+  case class Expression(head: ExpressionHead, tail: Option[ExpressionTail])
 
   // '(' Expression ')'
-  case class EnclosedExpression(exp: Expression) extends Expression
+  case class EnclosedExpression(exp: Expression) extends ExpressionHead
   // Identifier '(' Expression? ( ',' Expression )* ')'
-  sealed trait FunctionCall extends Expression
+  sealed trait FunctionCall extends ExpressionHead
   case class FunctionCallExpr(name: Identifier, args: List[Expression]) extends FunctionCall
+
+  // 'new' Identifier
+  case class NewExpression(id: Identifier) extends ExpressionHead
+  // 'delete' Expression
+  case class DeleteExpression(exp: Expression) extends ExpressionHead
+
   // Note: BNF bug: FunctionCall is not enough to capture "recipient[1].address.value(10000).call()"
   // MethodCall = Expression '.' Identifier '(' Expression? ( ',' Expression )* ')'
-  case class MethodCall(obj: Expression, name: Identifier, args: List[Expression]) extends Expression
-  // 'new' Identifier
-  case class NewExpression(id: Identifier) extends Expression
-  // 'delete' Expression
-  case class DeleteExpression(exp: Expression) extends Expression
+  //case class MethodCall(obj: Expression, name: Identifier, args: List[Expression]) extends Expression
+  case class MethodCallTail(name: Identifier, args: List[Expression]) extends ExpressionTail
   
   // Expression '.' Identifier
-  case class MemberAccess(obj: Expression, member: Identifier) extends Expression
+  //case class MemberAccess(obj: Expression, member: Identifier) extends Expression
+  case class MemberAccessTail(member: Identifier) extends ExpressionTail
   // Expression '[' Expression? ']'
-  case class IndexAccess(array: Expression, index: Option[Expression]) extends Expression
+  //case class IndexAccess(array: Expression, index: Option[Expression]) extends Expression
+  case class IndexAccessTail(index: Option[Expression]) extends ExpressionTail
 
-  // Expression? (',' Expression)
-  case class Comma(first: Option[Expression], second: Expression) extends Expression
-  // Note: The above looks suspicious. Might be: 
-  // Expression (',' Expression)?
+  // -- original -- Expression? (',' Expression)
+  // The above looks suspicious. Might be:
+  // -- rewritten -- Expression (',' Expression)?
+  //case class Comma(first: Expression, second: Option[Expression]) extends Expression
+  case class CommaTail(rest: Option[Expression]) extends ExpressionTail
 
-  sealed trait UnaryOperation extends Expression
+  sealed trait UnaryOperation extends ExpressionHead
+  sealed trait UnaryOperationTail extends ExpressionTail
+
   // Expression ++
-  case class IncrementPostfix(exp: Expression) extends UnaryOperation
+  case object IncrementPostfixTail extends UnaryOperationTail
   // Expression --
-  case class DecrementPostfix(exp: Expression) extends UnaryOperation
+  case object DecrementPostfixTail extends UnaryOperationTail
+
   // ~ Expression
   case class Negate(exp: Expression) extends UnaryOperation
   // ! Expression
@@ -225,80 +253,80 @@ object SolidityAST
   case class UnaryPlus(exp: Expression) extends UnaryOperation
   // - Expression
   case class UnaryMinus(exp: Expression) extends UnaryOperation
-  // << Expression
-  case class UnaryShiftLeft(exp: Expression) extends UnaryOperation
-  // >> Expression
-  case class UnaryShiftRight(exp: Expression) extends UnaryOperation
+  // Expression << 
+  case object UnaryShiftLeftTail extends UnaryOperationTail
+  // Expression >> 
+  case object UnaryShiftRightTail extends UnaryOperationTail
   // TODO: didn't find detailed explanations of the above << and >> unary operators.
   // TODO: There's another unary >>> operator too, but didn't find any docs about it.
 
-  sealed trait BinaryOperation extends Expression
+  sealed trait BinaryOperation extends ExpressionTail
   // **, *, /, %, +, -, &, |, ^, <, >, <=, >=, ==, !=, &&, ||
   // Expression ** Expression
-  case class Power(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class Power(rhs: Expression) extends BinaryOperation
   // Expression * Expression
-  case class Multiply(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class Multiply(rhs: Expression) extends BinaryOperation
   // Expression / Expression
-  case class DivideBy(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class DivideBy(rhs: Expression) extends BinaryOperation
   // Expression % Expression
-  case class Remainder(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class Remainder(rhs: Expression) extends BinaryOperation
   // Expression + Expression
-  case class Add(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class Add(rhs: Expression) extends BinaryOperation
   // Expression - Expression
-  case class Subtract(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class Subtract(rhs: Expression) extends BinaryOperation
   // Expression & Expression
-  case class BitwiseAnd(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class BitwiseAnd(rhs: Expression) extends BinaryOperation
   // Expression | Expression
-  case class BitwiseXor(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class BitwiseXor(rhs: Expression) extends BinaryOperation
   // Expression ^ Expression
-  case class BitwiseOr(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class BitwiseOr(rhs: Expression) extends BinaryOperation
   // Expression < Expression
-  case class LessThan(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class LessThan(rhs: Expression) extends BinaryOperation
   // Expression > Expression
-  case class GreaterThan(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class GreaterThan(rhs: Expression) extends BinaryOperation
   // Expression <= Expression
-  case class LessOrEqual(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class LessOrEqual(rhs: Expression) extends BinaryOperation
   // Expression >= Expression
-  case class GreaterOrEqual(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class GreaterOrEqual(rhs: Expression) extends BinaryOperation
   // Expression == Expression
-  case class EqualTo(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class EqualTo(rhs: Expression) extends BinaryOperation
   // Expression != Expression
-  case class NotEqual(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class NotEqual(rhs: Expression) extends BinaryOperation
   // Expression && Expression
-  case class And(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class And(rhs: Expression) extends BinaryOperation
   // Expression || Expression
-  case class Or(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class Or(rhs: Expression) extends BinaryOperation
   // assignment operators: =, |=, ^=, &=, <<=, >>=, +=, -=, *=, /=, %=
   // Expression = Expression
-  case class Assign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class Assign(rhs: Expression) extends BinaryOperation
   // Expression |= Expression
-  case class BitwiseOrAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class BitwiseOrAssign(rhs: Expression) extends BinaryOperation
   // Expression ^= Expression
-  case class BitwiseXorAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class BitwiseXorAssign(rhs: Expression) extends BinaryOperation
   // Expression &= Expression
-  case class BitwiseAndAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class BitwiseAndAssign(rhs: Expression) extends BinaryOperation
   // Expression <<= Expression
-  case class LeftShiftAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class LeftShiftAssign(rhs: Expression) extends BinaryOperation
   // Expression >>= Expression
-  case class RightShiftAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class RightShiftAssign(rhs: Expression) extends BinaryOperation
   // Expression += Expression
-  case class PlusAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class PlusAssign(rhs: Expression) extends BinaryOperation
   // Expression -= Expression
-  case class MinusAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class MinusAssign(rhs: Expression) extends BinaryOperation
   // Expression *= Expression
-  case class MultiplyAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class MultiplyAssign(rhs: Expression) extends BinaryOperation
   // Expression /= Expression
-  case class DivideAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class DivideAssign(rhs: Expression) extends BinaryOperation
   // Expression %= Expression
-  case class RemainderAssign(lhs: Expression, rhs: Expression) extends BinaryOperation
+  case class RemainderAssign(rhs: Expression) extends BinaryOperation
 
-  sealed trait TernaryExpression extends Expression
+  sealed trait TernaryExpression extends ExpressionTail
   // Expression '?' Expression ':' Expression
-  case class IfThenElse(cond: Expression, trueClause: Expression, falseClause: Expression) extends TernaryExpression
+  case class IfThenElse(trueClause: Expression, falseClause: Expression) extends TernaryExpression
 
   // PrimaryExpression = Identifier | BooleanLiteral | NumberLiteral | StringLiteral
 
-  sealed trait PrimaryExpression extends Expression
+  sealed trait PrimaryExpression extends ExpressionHead
   //  Identifier = [a-zA-Z_] [a-zA-Z_0-9]* // this constraint will be enforced by the parser
   // \kl Identifier is a type, it is not recommended to keep it as case class
   type Identifier = String
