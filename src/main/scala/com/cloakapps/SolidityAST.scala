@@ -78,18 +78,30 @@ object SolidityAST
   // Note: The above definition of IndexParameterList and ParameterList look redundant.
   case class ParameterList(list: List[Parameter]) 
 
+  // -- original --
   // TypeName = ElementaryTypeName | Identifier StorageLocation? | Mapping | ArrayTypeName
-  sealed trait TypeName
+  // -- rewritten --
+  // TypeName = TypeNameHead TypeNameTail?
+  // TypeNameHead = ElementaryTypeName | StorageLocationTypeName | Mapping
+  // TypeNameTail = TypeNameTailStart TypeNameTail?
+  // TypeNameTailStart = ArrayTypeNameTail
+  sealed trait TypeNameHead
+  sealed trait TypeNameTailStart
+  case class TypeNameTail(start: TypeNameTailStart, next: Option[TypeNameTail])
+  case class TypeName(head: TypeNameHead, tail: Option[TypeNameTail])
+
   // ElementaryTypeName = 'address' | 'bool' | 'string' | 'var' | Int | Uint | Byte | Fixed | Ufixed
-  sealed trait ElementaryTypeName extends TypeName // \kl: maybe it's better to introduce a tag
-  case object ElementaryType extends ElementaryTypeName
+  sealed trait ElementaryTypeName extends TypeNameHead // \kl: maybe it's better to introduce a tag
+  case class ElementaryType(name: ElementaryTypeName) 
 
   // Mapping = 'mapping' '(' ElementaryTypeName '=>' TypeName ')'
-  case class Mapping(elemType: ElementaryTypeName, typeName: TypeName) extends TypeName
+  case class Mapping(elemType: ElementaryType, typeName: TypeName) extends TypeNameHead
+  // For convenience: StorageLocationTypeName = Identifier StorageLocation?
+  case class StorageLocationTypeName(id: Identifier, loc: Option[StorageLocation]) extends TypeNameHead // \kl: can't find this in BNF
+
   // ArrayTypeName = TypeName StorageLocation? '[' Expression? ']'
-  case class ArrayTypeName(typeName: TypeName, loc: Option[StorageLocation], exp: Option[Expression]) extends TypeName
-  // Note: This is just for convenience: Identifier StorageLocation?
-  case class StorageLocationTypeName(id: Identifier, loc: Option[StorageLocation]) extends TypeName // \kl: can't find this in BNF
+  // ArrayTypeNameTail = StorageLocation? '[' Expression? ']'
+  case class ArrayTypeNameTail(loc: Option[StorageLocation], exp: Option[Expression]) extends TypeNameTailStart
 
   // StorageLocation = 'memory' | 'storage'
   sealed trait StorageLocation

@@ -375,7 +375,18 @@ object SolParser {
 
   // types
 
-  def typeName:Parser[TypeName] = anyAttempt(List(elementaryTypeName, storageLocationTypeName, mapping, arrayTypeName))
+  def typeNameHead:Parser[TypeNameHead] = anyAttempt(List(elementaryTypeName, storageLocationTypeName, mapping))
+  def typeNameTailStart:Parser[TypeNameTailStart] = attempt(arrayTypeNameTail)
+  def typeNameTail:Parser[TypeNameTail] = for {
+    start <- typeNameTailStart
+    next <- optional(typeNameTail)
+  } yield TypeNameTail(start, toOption(next))
+
+  def typeName:Parser[TypeName] = for {
+    head <- typeNameHead
+    _ <- whiteSpaces
+    tail <- optional(typeNameTail)
+  } yield TypeName(head, toOption(tail))
 
   def addressType:Parser[ElementaryTypeName] = for { _ <- string("address") } yield AddressType
   def boolType:Parser[ElementaryTypeName] = for { _ <- string("bool") } yield BoolType
@@ -387,20 +398,24 @@ object SolParser {
   def fixedType:Parser[ElementaryTypeName] = for { s <- prefixed(string("fixed"))(xdigits) } yield FixedType(s)
   def ufixedType:Parser[ElementaryTypeName] = for { s <- prefixed(string("ufixed"))(xdigits) } yield UfixedType(s)
 
-  def elementaryType:Parser[ElementaryTypeName] = 
-    anyAttempt(List(addressType,boolType,stringType,varType, intType, uintType, byteType, fixedType, ufixedType)) 
+  def elementaryType:Parser[ElementaryType] = for {
+    t <- anyAttempt(List(addressType,boolType,stringType,varType, intType, uintType, byteType, fixedType, ufixedType)) 
+  } yield ElementaryType(t)
 
-  def elementaryTypeName:Parser[TypeName] = for {
-    _ <- elementaryType
-  } yield ElementaryType
+  def elementaryTypeName:Parser[TypeNameHead] = for {
+    t <- elementaryType
+  } yield t match {
+    case ElementaryType(name) => name
+  }
 
-  def storageLocationTypeName:Parser[TypeName] = for {
-    id <- identifier
+  def storageLocationTypeName:Parser[TypeNameHead] = for {
     _ <- whiteSpace1
+    id <- identifier
     loc <- optional(storageLocation)
+    _ <- whiteSpaces
   } yield StorageLocationTypeName(id, toOption(loc))
 
-  def mapping:Parser[TypeName] = for {
+  def mapping:Parser[TypeNameHead] = for {
     _ <- string("mapping")
     _ <- sep("(")
     elemType <- elementaryType
@@ -409,14 +424,14 @@ object SolParser {
     _ <- sep(")")
   } yield Mapping(elemType, name)
 
-  def arrayTypeName:Parser[TypeName] = for {
-    name <- typeName
+  def arrayTypeNameTail:Parser[TypeNameTailStart] = for {
+    //name <- typeName
     storage <- optional(storageLocation)
     _ <- whiteSpace1
     _ <- sep("[")
     exp <- optional(expression)
     _ <- sep("]")
-  } yield ArrayTypeName(name, toOption(storage), toOption(exp))
+  } yield ArrayTypeNameTail(toOption(storage), toOption(exp))
 
   def variableDeclaration:Parser[VariableDeclaration] = for {
     name <- typeName
