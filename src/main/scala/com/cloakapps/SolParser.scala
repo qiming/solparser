@@ -120,7 +120,7 @@ object SolParser {
   def asIdentifier:Parser[Identifier] = for
   {
     _  <- string("as")
-    _  <- whiteSpaces
+    _  <- whiteSpace1
     id <- identifier
   } yield (id)
 
@@ -719,12 +719,12 @@ object SolParser {
     } yield list
 
     for {
+      _ <- whiteSpaces
       defType <- any(List(string("library"), string("contract")))
       _ <- whiteSpace1
       id <- identifier
       inheritance <- optional(inheritance)
-      parts <- many(contractPart)
-      _ <- sep("}")
+      parts <- between(sep("{"), sep("}"), many(contractPart))
     } yield defType match {
       case "library" => LibraryDef(id, toOption(inheritance).getOrElse(List()), parts)
       case "contract" => ContractDef(id, toOption(inheritance).getOrElse(List()), parts)
