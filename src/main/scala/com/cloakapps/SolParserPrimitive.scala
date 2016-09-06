@@ -124,12 +124,12 @@ object SolParserPrimitive {
   // string prefixed by one or more spaces
   def spaceString(s: String):Parser[String] = spaceSeq(string(s))
 
-  def sep(separator:String):Parser[String] = for {
-    _ <- whiteSpaces
-    s <- string(separator)
-    _ <- whiteSpaces
-  } yield s
+  // something surrounded by optional spaces
+  def spaceSep[A](separator:Parser[A]):Parser[A] = between(whiteSpaces, whiteSpaces, separator)
+  // string surrounded by optional spaces
+  def sep(separator:String):Parser[String] = spaceSep(string(separator))
 
+  // string prefixed by another string
   def prefixed(prefix:Parser[String])(tail:Parser[String]):Parser[String] = for {
   	(x,xs) <- seq(prefix, optional(tail))
   } yield x + toOption(xs).getOrElse("")

@@ -210,15 +210,13 @@ object SolParser {
   } yield EnclosedExpression(exp)
 
   def functionCallArgs:Parser[List[Expression]] = for {
-    _ <- whiteSpaces
-    _ <- char('(')
-    _ <- whiteSpaces
+    _ <- sep("(")
     args <- interleave(expression)(sep(","))
-    _ <- whiteSpaces
-    _ <- char(')')
+    _ <- sep(")")
   } yield args
 
   def functionCallExpr:Parser[FunctionCallExpr] = for {
+    _ <- whiteSpaces
   	name <- identifier
     args <- functionCallArgs
   } yield FunctionCallExpr(name, args)
@@ -229,7 +227,7 @@ object SolParser {
 
   def methodCallTail:Parser[ExpressionTailStart] = for {
     //obj <- expression
-    _ <- spaceString(".")
+    _ <- sep(".")
     name <- identifier
     _ <- sep("(")
     args <- interleave(expression)(sep(","))
@@ -237,20 +235,22 @@ object SolParser {
   } yield MethodCallTail(name, args)
 
   def newExpression:Parser[ExpressionHead] = for {
+    _ <- whiteSpaces
     _ <- string("new")
-    _ <- many1(whiteSpace)
+    _ <- whiteSpace1
     id <- identifier
   } yield NewExpression(id)
 
   def delExpression:Parser[ExpressionHead] = for {
+    _ <- whiteSpaces
     _ <- string("delete")
-    _ <- many1(whiteSpace)
+    _ <- whiteSpace1
     exp <- expression
   } yield DeleteExpression(exp)
 
   def memberAccessTail:Parser[ExpressionTailStart] = for {
     //exp <- expression
-    _ <- spaceString(".")
+    _ <- sep(".")
     id <- identifier
   } yield MemberAccessTail(id)
 
@@ -276,8 +276,7 @@ object SolParser {
 
   def postfixUnaryOperation:Parser[ExpressionTailStart] = for {
     //exp <- expression
-    _ <- whiteSpaces
-    op <- postfixUnaryOp
+    op <- spaceSep(postfixUnaryOp)
   } yield op match {
     case "++" => IncrementPostfixTail
     case "--" => DecrementPostfixTail
@@ -286,9 +285,9 @@ object SolParser {
   }
 
   def prefixUnaryOperation:Parser[ExpressionHead] = for {
-  	op <- prefixUnaryOp
-    _ <- whiteSpaces
+  	op <- spaceSep(prefixUnaryOp)
   	exp <- expression
+    _ <- whiteSpaces
   } yield op match {
   	case "++" => IncrementPrefix(exp)
   	case "--" => DecrementPrefix(exp)
@@ -303,8 +302,9 @@ object SolParser {
 
   def binaryOperationTail:Parser[ExpressionTailStart] = for {
   	//lhs <- expression
-  	op <- binaryOp
+  	op <- spaceSep(binaryOp)
   	rhs <- expression
+    _ <- whiteSpaces
   } yield op match {
   	case "**" => Power(rhs)
   	case "==" => EqualTo(rhs)
@@ -346,9 +346,16 @@ object SolParser {
 
   def ternaryExpressionTail:Parser[ExpressionTailStart] = ifThenElse
 
-  def expressionHead:Parser[ExpressionHead] = anyAttempt(List(functionCall,  enclosedExpression, unaryOperation, delExpression, newExpression, prefixUnaryOperation, primaryExpression))
+  def expressionHead:Parser[ExpressionHead] = anyAttempt (
+   List(functionCall,  enclosedExpression, unaryOperation, 
+        delExpression, newExpression, prefixUnaryOperation, primaryExpression))
 
-  def expressionTailStart:Parser[ExpressionTailStart] = anyAttempt(List(indexAccessTail, memberAccessTail, methodCallTail, unaryOperationTail, binaryOperationTail, ternaryExpressionTail, commaTail))
+  // exclude commaTail for now since not sure if that was correct.
+  def expressionTailStart:Parser[ExpressionTailStart] = anyAttempt ( 
+   List(indexAccessTail, memberAccessTail, methodCallTail, 
+        unaryOperationTail, binaryOperationTail, 
+        //commaTail,
+        ternaryExpressionTail)) 
 
   def expressionTail:Parser[ExpressionTail] = for {
     start <- expressionTailStart
