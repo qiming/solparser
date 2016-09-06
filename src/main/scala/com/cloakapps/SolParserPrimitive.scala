@@ -11,7 +11,7 @@ import com.github.luzhuomi.scalazparsec.CharParser.{
 object SolParserPrimitive {
 
   case class State(line:Int)
-  val initState = State(0)
+  val initState = State(1)
 
   def incrLine(s:(State,List[Token])):(State,List[Token]) = s match 
   {
@@ -150,11 +150,7 @@ object SolParserPrimitive {
     case _ => false
   }
 
-  def whiteSpace:Parser[State,Char] = for 
-  {
-    c <- sat(x => isWhiteSpace(x))
-    _ <- incrLineIfRet(c)
-  } yield c
+  def whiteSpace:Parser[State,Char] = sat(x => isWhiteSpace(x))
 
   def seq[A,B](pa:Parser[State,A],pb:Parser[State,B]):Parser[State,(A,B)] = for
   {
