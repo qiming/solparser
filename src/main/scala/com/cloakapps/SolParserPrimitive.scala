@@ -2,56 +2,106 @@ package com.cloakapps
 
 import scalaz._
 import Scalaz.{interleave => _, char => _, _}
-import com.github.luzhuomi.scalazparsec.NonBacktracking._
+import com.github.luzhuomi.scalazparsec.CharParser.{
+  sat => psat, everythingUntil => peverythingUntil,  
+  lookAhead => plookAhead, getState => pgetState, setState => psetState, 
+  point => ppoint, item => pitem, _
+} // p for polymorphic
 
 object SolParserPrimitive {
+
+  case class State(line:Int)
+  val initState = State(0)
+
+  def incrLine(s:(State,List[Token])):(State,List[Token]) = s match 
+  {
+    case (State(l),tks) => (State(l+1),tks)
+  }
+
+  def item:Parser[State,Token] = for 
+  {
+    c  <- pitem[State]
+    _ <- incrLineIfRet(c)
+  } yield c
+
+  def sat(p: Token => Boolean): Parser[State,Token] = for 
+  {
+    c <- psat[State](p)
+    _ <- incrLineIfRet(c)
+  } yield c
+
+  
+  def everythingUntil(p: Token => Boolean): Parser[State,List[Token]] = for 
+  {
+    cs <- peverythingUntil[State](p)
+    _  <- cs.map( (c:Token) => incrLineIfRet(c)).sequence[({type l[A]=Parser[State,A]})#l,Unit]
+  } yield cs
+  def lookAhead[A](p: Parser[State,A]): (Parser[State,A]) = plookAhead[State,A](p)
+  def getState: Parser[State,(State,List[Token])] = pgetState
+  def setState(st_toks: (State,List[Token])): Parser[State,Unit] = psetState(st_toks)
+  def point[A](x:A):Parser[State,A] = ppoint(x)
+
+  def incrLineIfRet(c:Token) : Parser[State,Unit] = 
+  {
+    if ((c == '\n') || (c == '\r'))
+    { 
+      for 
+      { 
+        st <- getState
+        _  <- setState(incrLine(st))
+      } yield ()
+    } 
+    else 
+    {
+      point(())
+    }
+  } 
   // same as token from scalazparsec 0.1.1
-  def char(x:Token):Parser[Token] = sat( ((y:Token) => y == x) )
+  def char(x:Token):Parser[State,Token] = sat( ((y:Token) => y == x) )
 
+  def anyChar:Parser[State,Token] = item
 
-  def anyChar:Parser[Token] = item
-
-  def oneOf(s:String):Parser[Token] =
+  def oneOf(s:String):Parser[State,Token] =
   {
     val l = s.toSet
     sat(l.contains(_))
   }
 
-  def noneOf(s:String):Parser[Token] =
+  def noneOf(s:String):Parser[State,Token] =
   {
     val l = s.toSet
     sat(!l.contains(_))
   }
 
-  def eof:Parser[Unit] = for
+  def eof:Parser[State,Unit] = for
   {
     x <- notFollowedBy(item)
   } yield(x)
 
-  def notFollowedBy[A](p:Parser[A]):Parser[Unit] =
+  def notFollowedBy[A](p:Parser[State,A]):Parser[State,Unit] =
   {
-    def t:Parser[Unit] = for
+    def t:Parser[State,Unit] = for
     {
       c <- attempt(p)
-      x <- (unexpected:Parser[Unit])
+      x <- (unexpected:Parser[State,Unit])
     } yield(x)
-    def t2:Parser[Unit] = point(())
+    def t2:Parser[State,Unit] = point(())
     attempt(+++(t)(t2))
   }
 
-  def unexpected[A](implicit m:MonadPlus[Parser]): Parser[A] = m.empty
+  def unexpected[A](implicit m:MonadPlus[({type Lambda[B] = Parser[State,B]})#Lambda]): Parser[State,A] = m.empty
 
-  def between[A,B,C](p1:Parser[A],p2:Parser[B],p3:Parser[C]) :Parser[C] = for
+  def between[A,B,C](p1:Parser[State,A],p2:Parser[State,B],p3:Parser[State,C]):Parser[State,C] = for
   {
     _ <- p1
     x <- p3
     _ <- p2
   } yield x
 
-  def option[A](a:A,p:Parser[A]) =
+  def option[A](a:A,p:Parser[State,A]) =
     +++(p)(point(a))
 
-  def when(cond:Boolean)(p:Parser[Unit]):Parser[Unit] =
+  def when(cond:Boolean)(p:Parser[State,Unit]):Parser[State,Unit] =
   {
     if (cond)
     {
@@ -62,7 +112,7 @@ object SolParserPrimitive {
     }
   }
 
-  def guard(cond:Boolean)(implicit m:MonadPlus[Parser]):Parser[Unit] =
+  def guard(cond:Boolean)(implicit m:MonadPlus[({type Lambda[B] = Parser[State,B]})#Lambda]):Parser[State,Unit] =
   {
     if (cond)
     { point(()) }
@@ -71,9 +121,9 @@ object SolParserPrimitive {
   }
 
 
-  def string(s:String):Parser[String] =
+  def string(s:String):Parser[State,String] =
   {
-    def string_(l:List[Char]):Parser[List[Char]] = l match
+    def string_(l:List[Char]):Parser[State,List[Char]] = l match
     {
       case Nil => point(Nil)
       case (c::cs) => for
@@ -89,7 +139,7 @@ object SolParserPrimitive {
     } yield l.mkString
   }
 
-  def digit:Parser[Char] = sat (_.isDigit)
+  def digit:Parser[State,Char] = sat (_.isDigit)
 
   def isWhiteSpace(c:Char):Boolean = c match
   {
@@ -100,62 +150,67 @@ object SolParserPrimitive {
     case _ => false
   }
 
-  def whiteSpace:Parser[Char] = sat (isWhiteSpace)
+  def whiteSpace:Parser[State,Char] = for 
+  {
+    c <- sat(x => isWhiteSpace(x))
+    _ <- incrLineIfRet(c)
+  } yield c
 
-  def seq[A,B](pa:Parser[A],pb:Parser[B]):Parser[(A,B)] = for
+  def seq[A,B](pa:Parser[State,A],pb:Parser[State,B]):Parser[State,(A,B)] = for
   {
     a <- pa
     b <- pb
   } yield (a,b)
 
   //def whiteSpaces:Parser[List[Char]] = everythingUntil(!isWhiteSpace(_))
-  def whiteSpaces:Parser[List[Char]] = many(whiteSpace)
+  def whiteSpaces:Parser[State,List[Char]] = many(whiteSpace)
 
-  def whiteSpace1:Parser[List[Char]] = for {
+
+  def whiteSpace1:Parser[State,List[Char]] = for {
     a <- whiteSpace
     b <- whiteSpaces
   } yield a::b
 
   // a prefixed by one or more spaces
-  def spaceSeq[A](pa: Parser[A]):Parser[A] = for {
+  def spaceSeq[A](pa: Parser[State,A]):Parser[State,A] = for {
   	(a,b) <- seq(whiteSpace1, pa)
   } yield b
 
   // string prefixed by one or more spaces
-  def spaceString(s: String):Parser[String] = spaceSeq(string(s))
+  def spaceString(s: String):Parser[State,String] = spaceSeq(string(s))
 
-  def sep(separator:String):Parser[String] = for {
+  def sep(separator:String):Parser[State,String] = for {
     _ <- whiteSpaces
     s <- string(separator)
     _ <- whiteSpaces
   } yield s
 
-  def prefixed(prefix:Parser[String])(tail:Parser[String]):Parser[String] = for {
+  def prefixed(prefix:Parser[State,String])(tail:Parser[State,String]):Parser[State,String] = for {
   	(x,xs) <- seq(prefix, optional(tail))
   } yield x + toOption(xs).getOrElse("")
 
-  def digits:Parser[String] = for {
+  def digits:Parser[State,String] = for {
   	s <- many1(digit)
 	} yield s.mkString
 
 	// repeat pa exactly n times.
-	def repeat[A](n:Int)(pa:Parser[A]):Parser[List[A]] = 
+	def repeat[A](n:Int)(pa:Parser[State,A]):Parser[State,List[A]] = 
 		if (n <= 0) point(List())
 		else for {
 			x <- pa
 			xs <- repeat(n-1)(pa)
 		} yield x::xs
 
-	def hexChar:Parser[Char] = sat(x => x.isDigit || (x >= 'a' && x <= 'z') || (x >= 'A' && x <= 'Z'))
+	def hexChar:Parser[State,Char] = sat(x => x.isDigit || (x >= 'a' && x <= 'z') || (x >= 'A' && x <= 'Z'))
 
-	def hex:Parser[String] = {
+	def hex:Parser[State,String] = {
 		for {
 			x <- many(repeat(2)(hexChar))
 		} yield x.flatMap(x => x).mkString
 	}
 
 	// strings like "0x1234"
-  def xdigits:Parser[String] = for {
+  def xdigits:Parser[State,String] = for {
   	a <- many1(digit)
   	x <- char('x')
   	s <- many1(digit)
@@ -183,6 +238,6 @@ object SolParserPrimitive {
     case \/-(x) => Right(x)   
   }
 
-  def any[A](parsers: List[Parser[A]]):Parser[A] = parsers.reduceLeft((a,b) => +++(a)(b))
-  def anyAttempt[A](parsers: List[Parser[A]]):Parser[A] = parsers.reduceLeft((a,b) => +++(attempt(a))(attempt(b)))
+  def any[A](parsers: List[Parser[State,A]]):Parser[State,A] = parsers.reduceLeft((a,b) => +++(a)(b))
+  def anyAttempt[A](parsers: List[Parser[State,A]]):Parser[State,A] = parsers.reduceLeft((a,b) => +++(attempt(a))(attempt(b)))
 }

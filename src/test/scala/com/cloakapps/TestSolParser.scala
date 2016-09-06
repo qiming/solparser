@@ -2,7 +2,8 @@ package com.cloakapps
 
 import com.cloakapps.SolidityAST._
 import com.cloakapps.SolParser._
-import com.github.luzhuomi.scalazparsec.NonBacktracking._
+import com.cloakapps.SolParserPrimitive._
+import com.github.luzhuomi.scalazparsec.CharParser._
 
 object TestSolParser extends App 
 {
@@ -30,10 +31,11 @@ contract greeter is mortal {
 	println(proStr)
 	parseSol(proStr) match
 	{
-		case Empty(_) => println("parser failed to start.")
-		case Consumed(None) => println("parser aborted abnormally.")
-		case Consumed(Some((source_unit,tokens))) if tokens.length > 0 =>  println("parser incompleted.")
-		case Consumed(Some((source_unit,tokens))) =>  println(source_unit.toString)
+		case Consumed(Fail(err,(State(ln),toks))) => println(err + s"at line $ln with '" + toks.take(20).mkString+ "'")
+		case Consumed(Succ((source_unit,(st,tokens)))) if tokens.length > 0 =>  println("Parsing incompleted.")
+		case Consumed(Succ((source_unit,(st,tokens)))) =>  println(source_unit.toString)
+		case Empty(Fail(err,(State(ln),toks))) => println(err + s"at line $ln with '" + toks.take(20).mkString + "'")
+		case otherwise => println(otherwise)
 
 	}
 }
