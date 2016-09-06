@@ -227,7 +227,7 @@ object SolParser {
     f <- functionCallExpr
   } yield f
 
-  def methodCallTail:Parser[ExpressionTail] = for {
+  def methodCallTail:Parser[ExpressionTailStart] = for {
     //obj <- expression
     _ <- spaceString(".")
     name <- identifier
@@ -248,20 +248,20 @@ object SolParser {
     exp <- expression
   } yield DeleteExpression(exp)
 
-  def memberAccessTail:Parser[ExpressionTail] = for {
+  def memberAccessTail:Parser[ExpressionTailStart] = for {
     //exp <- expression
     _ <- spaceString(".")
     id <- identifier
   } yield MemberAccessTail(id)
 
-  def indexAccessTail:Parser[ExpressionTail] = for {
+  def indexAccessTail:Parser[ExpressionTailStart] = for {
     //exp <- expression
     _ <- sep("[")
     ind <- optional(expression)
     _ <- sep("]")
   } yield IndexAccessTail(toOption(ind))
 
-  def commaTail:Parser[ExpressionTail] = for {
+  def commaTail:Parser[ExpressionTailStart] = for {
     //first <- expression
     _ <- sep(",")
     second <- optional(expression)
@@ -274,7 +274,7 @@ object SolParser {
   	"*=", "/=", "%=", "|=", "^=", "&=", "<<=", ">>=", "+=", "-=", 
   	"*", "/", "%", "+", "-", "&&", "||", "&", "|", "^", "=").map(s => string(s)))
 
-  def postfixUnaryOperation:Parser[ExpressionTail] = for {
+  def postfixUnaryOperation:Parser[ExpressionTailStart] = for {
     //exp <- expression
     _ <- whiteSpaces
     op <- postfixUnaryOp
@@ -299,9 +299,9 @@ object SolParser {
   }
 
   def unaryOperation:Parser[ExpressionHead] = attempt(prefixUnaryOperation)
-  def unaryOperationTail:Parser[ExpressionTail] = attempt(postfixUnaryOperation)
+  def unaryOperationTail:Parser[ExpressionTailStart] = attempt(postfixUnaryOperation)
 
-  def binaryOperationTail:Parser[ExpressionTail] = for {
+  def binaryOperationTail:Parser[ExpressionTailStart] = for {
   	//lhs <- expression
   	op <- binaryOp
   	rhs <- expression
@@ -336,7 +336,7 @@ object SolParser {
   	case "=" => Assign(rhs)
   }
 
-  def ifThenElse:Parser[ExpressionTail] = for {
+  def ifThenElse:Parser[ExpressionTailStart] = for {
     //cond <- expression
     _ <- sep("?")
     trueClause <- expression
@@ -344,11 +344,16 @@ object SolParser {
     falseClause <- expression
   } yield IfThenElse(trueClause, falseClause)
 
-  def ternaryExpressionTail:Parser[ExpressionTail] = ifThenElse
+  def ternaryExpressionTail:Parser[ExpressionTailStart] = ifThenElse
 
   def expressionHead:Parser[ExpressionHead] = anyAttempt(List(functionCall,  enclosedExpression, unaryOperation, delExpression, newExpression, prefixUnaryOperation, primaryExpression))
 
-  def expressionTail:Parser[ExpressionTail] = anyAttempt(List(indexAccessTail, memberAccessTail, methodCallTail, unaryOperationTail, binaryOperationTail, ternaryExpressionTail, commaTail))
+  def expressionTailStart:Parser[ExpressionTailStart] = anyAttempt(List(indexAccessTail, memberAccessTail, methodCallTail, unaryOperationTail, binaryOperationTail, ternaryExpressionTail, commaTail))
+
+  def expressionTail:Parser[ExpressionTail] = for {
+    start <- expressionTailStart
+    next <- optional(expressionTail)
+  } yield ExpressionTail(start, toOption(next))
 
   def expression:Parser[Expression] = for {
     head <- expressionHead

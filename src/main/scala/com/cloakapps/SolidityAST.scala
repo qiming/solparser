@@ -193,15 +193,12 @@ object SolidityAST
   //   ExpressionHead = FunctionCall | '(' Expression ')' | UnaryOperation
   //     | NewExpression | DeleteExpression | PrefixUnaryOperation | PrimaryExpression
   // and 
-  //   ExpressionTail = IndexAccessTail ExpressionTail? 
-  //     | MemberAccessTail ExpressionTail?
-  //     | MethodCallTail ExpressionTail? 
-  //     | UnaryOperationTail ExpressionTail? 
-  //     | BinaryOperationTail ExpressionTail? 
-  //     | TernaryOptionTail ExpressionTail? 
-  //     | CommaTail ExpressionTail?
+  //   ExpressionTailStart = IndexAccessTail | MemberAccessTail | MethodCallTail 
+  //     | UnaryOperationTail | BinaryOperationTail | TernaryOptionTail | CommaTail 
+  //   ExpressionTail = ExpressionTailStart ExpressionTail?
   sealed trait ExpressionHead
-  sealed trait ExpressionTail
+  sealed trait ExpressionTailStart
+  case class ExpressionTail(start: ExpressionTailStart, next: Option[ExpressionTail])
   case class Expression(head: ExpressionHead, tail: Option[ExpressionTail])
 
   // '(' Expression ')'
@@ -218,23 +215,23 @@ object SolidityAST
   // Note: BNF bug: FunctionCall is not enough to capture "recipient[1].address.value(10000).call()"
   // MethodCall = Expression '.' Identifier '(' Expression? ( ',' Expression )* ')'
   //case class MethodCall(obj: Expression, name: Identifier, args: List[Expression]) extends Expression
-  case class MethodCallTail(name: Identifier, args: List[Expression]) extends ExpressionTail
+  case class MethodCallTail(name: Identifier, args: List[Expression]) extends ExpressionTailStart
   
   // Expression '.' Identifier
   //case class MemberAccess(obj: Expression, member: Identifier) extends Expression
-  case class MemberAccessTail(member: Identifier) extends ExpressionTail
+  case class MemberAccessTail(member: Identifier) extends ExpressionTailStart
   // Expression '[' Expression? ']'
   //case class IndexAccess(array: Expression, index: Option[Expression]) extends Expression
-  case class IndexAccessTail(index: Option[Expression]) extends ExpressionTail
+  case class IndexAccessTail(index: Option[Expression]) extends ExpressionTailStart
 
   // -- original -- Expression? (',' Expression)
   // The above looks suspicious. Might be:
   // -- rewritten -- Expression (',' Expression)?
   //case class Comma(first: Expression, second: Option[Expression]) extends Expression
-  case class CommaTail(rest: Option[Expression]) extends ExpressionTail
+  case class CommaTail(rest: Option[Expression]) extends ExpressionTailStart
 
   sealed trait UnaryOperation extends ExpressionHead
-  sealed trait UnaryOperationTail extends ExpressionTail
+  sealed trait UnaryOperationTail extends ExpressionTailStart
 
   // Expression ++
   case object IncrementPostfixTail extends UnaryOperationTail
@@ -260,7 +257,7 @@ object SolidityAST
   // TODO: didn't find detailed explanations of the above << and >> unary operators.
   // TODO: There's another unary >>> operator too, but didn't find any docs about it.
 
-  sealed trait BinaryOperation extends ExpressionTail
+  sealed trait BinaryOperation extends ExpressionTailStart
   // **, *, /, %, +, -, &, |, ^, <, >, <=, >=, ==, !=, &&, ||
   // Expression ** Expression
   case class Power(rhs: Expression) extends BinaryOperation
@@ -320,7 +317,7 @@ object SolidityAST
   // Expression %= Expression
   case class RemainderAssign(rhs: Expression) extends BinaryOperation
 
-  sealed trait TernaryExpression extends ExpressionTail
+  sealed trait TernaryExpression extends ExpressionTailStart
   // Expression '?' Expression ':' Expression
   case class IfThenElse(trueClause: Expression, falseClause: Expression) extends TernaryExpression
 
