@@ -125,7 +125,7 @@ object SolParser {
   def asIdentifier:Parser[State,Identifier] = for
   {
     _  <- string("as")
-    _  <- whiteSpaces
+    _  <- whiteSpace1
     id <- identifier
   } yield (id)
 
@@ -215,16 +215,15 @@ object SolParser {
   } yield EnclosedExpression(exp)
 
   def functionCallArgs:Parser[State,List[Expression]] = for {
-    _ <- whiteSpaces
-    _ <- char('(')
-    _ <- whiteSpaces
+    _ <- sep("(")
     args <- interleave(expression)(sep(","))
-    _ <- whiteSpaces
-    _ <- char(')')
+    _ <- sep(")")
   } yield args
 
+
   def functionCallExpr:Parser[State,FunctionCallExpr] = for {
-  	name <- identifier
+    _ <- whiteSpaces
+    name <- identifier
     args <- functionCallArgs
   } yield FunctionCallExpr(name, args)
 
@@ -234,7 +233,7 @@ object SolParser {
 
   def methodCallTail:Parser[State,ExpressionTailStart] = for {
     //obj <- expression
-    _ <- spaceString(".")
+    _ <- sep(".")
     name <- identifier
     _ <- sep("(")
     args <- interleave(expression)(sep(","))
@@ -242,20 +241,22 @@ object SolParser {
   } yield MethodCallTail(name, args)
 
   def newExpression:Parser[State,ExpressionHead] = for {
+    _ <- whiteSpaces
     _ <- string("new")
-    _ <- many1(whiteSpace)
+    _ <- whiteSpace1
     id <- identifier
   } yield NewExpression(id)
 
   def delExpression:Parser[State,ExpressionHead] = for {
+    _ <- whiteSpaces
     _ <- string("delete")
-    _ <- many1(whiteSpace)
+    _ <- whiteSpace1
     exp <- expression
   } yield DeleteExpression(exp)
 
   def memberAccessTail:Parser[State,ExpressionTailStart] = for {
     //exp <- expression
-    _ <- spaceString(".")
+    _ <- sep(".")
     id <- identifier
   } yield MemberAccessTail(id)
 
@@ -281,8 +282,7 @@ object SolParser {
 
   def postfixUnaryOperation:Parser[State,ExpressionTailStart] = for {
     //exp <- expression
-    _ <- whiteSpaces
-    op <- postfixUnaryOp
+    op <- spaceSep(postfixUnaryOp)
   } yield op match {
     case "++" => IncrementPostfixTail
     case "--" => DecrementPostfixTail
@@ -290,10 +290,11 @@ object SolParser {
     case ">>" => UnaryShiftRightTail
   }
 
+
   def prefixUnaryOperation:Parser[State,ExpressionHead] = for {
-  	op <- prefixUnaryOp
-    _ <- whiteSpaces
+  	op <- spaceSep(prefixUnaryOp)
   	exp <- expression
+    _ <- whiteSpaces
   } yield op match {
   	case "++" => IncrementPrefix(exp)
   	case "--" => DecrementPrefix(exp)
@@ -308,8 +309,9 @@ object SolParser {
 
   def binaryOperationTail:Parser[State,ExpressionTailStart] = for {
   	//lhs <- expression
-  	op <- binaryOp
+  	op <- spaceSep(binaryOp)
   	rhs <- expression
+    _ <- whiteSpaces
   } yield op match {
   	case "**" => Power(rhs)
   	case "==" => EqualTo(rhs)
@@ -351,9 +353,16 @@ object SolParser {
 
   def ternaryExpressionTail:Parser[State,ExpressionTailStart] = ifThenElse
 
-  def expressionHead:Parser[State,ExpressionHead] = anyAttempt(List(functionCall,  enclosedExpression, unaryOperation, delExpression, newExpression, prefixUnaryOperation, primaryExpression))
+  def expressionHead:Parser[State,ExpressionHead] = anyAttempt (
+   List(functionCall,  enclosedExpression, unaryOperation, 
+        delExpression, newExpression, prefixUnaryOperation, primaryExpression))
 
-  def expressionTailStart:Parser[State,ExpressionTailStart] = anyAttempt(List(indexAccessTail, memberAccessTail, methodCallTail, unaryOperationTail, binaryOperationTail, ternaryExpressionTail, commaTail))
+  // exclude commaTail for now since not sure if that was correct.
+  def expressionTailStart:Parser[State,ExpressionTailStart] = anyAttempt ( 
+   List(indexAccessTail, memberAccessTail, methodCallTail, 
+        unaryOperationTail, binaryOperationTail, 
+        //commaTail,
+        ternaryExpressionTail)) 
 
   def expressionTail:Parser[State,ExpressionTail] = for {
     start <- expressionTailStart
@@ -373,7 +382,20 @@ object SolParser {
 
   // types
 
-  def typeName:Parser[State,TypeName] = anyAttempt(List(elementaryTypeName, storageLocationTypeName, mapping, arrayTypeName))
+
+  def typeNameHead:Parser[State,TypeNameHead] = anyAttempt(List(elementaryTypeName, storageLocationTypeName, mapping))
+  def typeNameTailStart:Parser[State,TypeNameTailStart] = attempt(arrayTypeNameTail)
+  def typeNameTail:Parser[State,TypeNameTail] = for {
+    start <- typeNameTailStart
+    next <- optional(typeNameTail)
+  } yield TypeNameTail(start, toOption(next))
+
+  def typeName:Parser[State,TypeName] = for {
+    head <- typeNameHead
+    _ <- whiteSpaces
+    tail <- optional(typeNameTail)
+  } yield TypeName(head, toOption(tail))
+
 
   def addressType:Parser[State,ElementaryTypeName] = for { _ <- string("address") } yield AddressType
   def boolType:Parser[State,ElementaryTypeName] = for { _ <- string("bool") } yield BoolType
@@ -385,20 +407,26 @@ object SolParser {
   def fixedType:Parser[State,ElementaryTypeName] = for { s <- prefixed(string("fixed"))(xdigits) } yield FixedType(s)
   def ufixedType:Parser[State,ElementaryTypeName] = for { s <- prefixed(string("ufixed"))(xdigits) } yield UfixedType(s)
 
-  def elementaryType:Parser[State,ElementaryTypeName] = 
-    anyAttempt(List(addressType,boolType,stringType,varType, intType, uintType, byteType, fixedType, ufixedType)) 
+  def elementaryType:Parser[State,ElementaryType] = for {
+    t <- anyAttempt(List(addressType,boolType,stringType,varType, intType, uintType, byteType, fixedType, ufixedType)) 
+  } yield ElementaryType(t)
 
-  def elementaryTypeName:Parser[State,TypeName] = for {
-    _ <- elementaryType
-  } yield ElementaryType
+  def elementaryTypeName:Parser[State,TypeNameHead] = for {
+    t <- elementaryType
+  } yield t match {
+    case ElementaryType(name) => name
+  }
 
-  def storageLocationTypeName:Parser[State,TypeName] = for {
-    id <- identifier
+  def storageLocationTypeName:Parser[State,TypeNameHead] = for {
+
     _ <- whiteSpace1
+    id <- identifier
     loc <- optional(storageLocation)
+    _ <- whiteSpaces
   } yield StorageLocationTypeName(id, toOption(loc))
 
-  def mapping:Parser[State,TypeName] = for {
+
+  def mapping:Parser[State,TypeNameHead] = for {
     _ <- string("mapping")
     _ <- sep("(")
     elemType <- elementaryType
@@ -407,14 +435,16 @@ object SolParser {
     _ <- sep(")")
   } yield Mapping(elemType, name)
 
-  def arrayTypeName:Parser[State,TypeName] = for {
-    name <- typeName
+
+
+  def arrayTypeNameTail:Parser[State,TypeNameTailStart] = for {
+    //name <- typeName
     storage <- optional(storageLocation)
     _ <- whiteSpace1
     _ <- sep("[")
     exp <- optional(expression)
     _ <- sep("]")
-  } yield ArrayTypeName(name, toOption(storage), toOption(exp))
+  } yield ArrayTypeNameTail(toOption(storage), toOption(exp))
 
   def variableDeclaration:Parser[State,VariableDeclaration] = for {
     name <- typeName
@@ -717,12 +747,12 @@ object SolParser {
     } yield list
 
     for {
+      _ <- whiteSpaces
       defType <- any(List(string("library"), string("contract")))
       _ <- whiteSpace1
       id <- identifier
       inheritance <- optional(inheritance)
-      parts <- many(contractPart)
-      _ <- sep("}")
+      parts <- between(sep("{"), sep("}"), many(contractPart))
     } yield defType match {
       case "library" => LibraryDef(id, toOption(inheritance).getOrElse(List()), parts)
       case "contract" => ContractDef(id, toOption(inheritance).getOrElse(List()), parts)
