@@ -560,14 +560,16 @@ object SolParser {
 
   def parameter:Parser[State,Parameter] = for {
     typeName <- typeName   
-    indexed <- optional(spaceString("indexed"))
-    id <- optional(spaceSeq(identifier))
+    _ <- whiteSpaces
+    indexed <- optional(string("indexed"))
+    _ <- whiteSpaces
+    id <- optional(identifier)
   } yield Parameter(typeName, toOption(id), isPresent(indexed))
 
   def parameterList:Parser[State,ParameterList] = for {
-    _ <- char('(')
+    _ <- sep("(")
     params <- interleave(parameter)(sep(","))
-    _ <- char(')')
+    _ <- sep(")")
   } yield ParameterList(params)
 
   // function modifiers
@@ -667,23 +669,24 @@ object SolParser {
 
   def functionDefinition:Parser[State,ContractPart] = {
     def returns:Parser[State,ParameterList] = for {
-      _ <- whiteSpace1
+      _ <- whiteSpaces
       _ <- string("returns")
-      _ <- whiteSpace1
       params <- parameterList
     } yield params
 
     for {
       _ <- string("function") 
-      id <- optional(spaceSeq(identifier))
+      _ <- whiteSpaces
+      id <- optional(identifier)
+      _ <- whiteSpaces
       params <- parameterList
-      modifiers <- optional(interleave(functionModifier)(whiteSpace1))
+      modifiers <- many(functionModifier)
       returns <- optional(returns)
       _ <- whiteSpaces
       body <- blockStatement
     } yield FunctionDefinition(toOption(id), 
                                params, 
-                               toOption(modifiers).getOrElse(List()), 
+                               modifiers, 
                                toOption(returns).getOrElse(ParameterList(List())), 
                                body)
   }
@@ -722,7 +725,6 @@ object SolParser {
     am <- optional(accessModifier)
     id <- identifier
     exp <- optional(seq(sep("="), expression))
-    _ <- whiteSpaces
     _ <- char(';')
   } yield StateVariableDeclaration(typeName, toOption(am), id, toOption(exp).map(_._2))
 

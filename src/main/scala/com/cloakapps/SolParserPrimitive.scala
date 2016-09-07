@@ -228,7 +228,7 @@ object SolParserPrimitive {
     case \/-(x)  => Some(x)   // right
   }
 
-  def isPresent[A](a: \/[A,Unit]): Boolean = toOption(a) == None
+  def isPresent[A](a: \/[A,Unit]): Boolean = toOption(a) != None
 
   def toEither[A,B](a: \/[A,B]): Either[A,B] = a match {
     case -\/(x) => Left(x) 
