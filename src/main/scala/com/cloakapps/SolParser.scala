@@ -719,8 +719,8 @@ object SolParser {
 
   def stateVariableDeclaration:Parser[State,ContractPart] = for {
     typeName <- typeName
-    am <- optional(spaceSeq(accessModifier))
-    id <- spaceSeq(identifier)
+    am <- optional(accessModifier)
+    id <- identifier
     exp <- optional(seq(sep("="), expression))
     _ <- whiteSpaces
     _ <- char(';')
