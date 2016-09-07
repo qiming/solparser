@@ -43,7 +43,7 @@ object SolParserPrimitive {
 
   def incrLineIfRet(c:Token) : Parser[State,Unit] = 
   {
-    if ((c == '\n') || (c == '\r'))
+    if (c == '\n') 
     { 
       for 
       { 
