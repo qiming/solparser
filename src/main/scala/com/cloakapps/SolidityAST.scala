@@ -35,8 +35,10 @@ object SolidityAST
   // | StructDefinition | ModifierDefinition | FunctionDefinition | EventDefinition | EnumDefinition
   sealed trait ContractPart
   // StateVariableDeclaration = TypeName ( 'public' | 'internal' | 'private' )? Identifier ('=' Expression)? ';'
+  // Note: state variables are always in storage.
   case class StateVariableDeclaration(typeName:TypeName,accessMod:Option[AccessModifier],id:Identifier, exp: Option[Expression]) extends ContractPart
   // UsingForDeclaration = 'using' Identifier 'for' ('*' | TypeName) ';'
+  // Note: using A for B is like adding method extensions from library A to type B.
   case class UsingForDeclaration(id: Identifier, wildcardOrName: Option[TypeName]) extends ContractPart
   // StructDefinition = 'struct' Identifier '{' ( VariableDeclaration ';' (VariableDeclaration ';')* )? '}'
   case class StructDefinition(id:Identifier, varDecls:List[VariableDeclaration]) extends ContractPart
@@ -69,26 +71,40 @@ object SolidityAST
 	case class ConstantModifier() extends FunctionModifier
 	case class ExternalModifier() extends FunctionModifier
 
+  // -- original --
   // VariableDeclaration = TypeName Identifier
-  case class  VariableDeclaration(typeName:TypeName, id:Identifier)
+  // -- rewrite since variable declarations may come with location specifiers
+  // VariableDeclaration = LocTypeName Identifier
+  // Note: variable declarations in struct does not come with location specifiers. 
+  // But just keep it simple here.
+  case class  VariableDeclaration(typeName:LocTypeName, id:Identifier)
 
+  // -- original --
   // IndexedParameterList = '(' ( TypeName 'indexed'? Identifier? (',' TypeName 'indexed'? Identifier?)* )? ')'
   // ParameterList =        '(' ( TypeName            Identifier? (',' TypeName            Identifier?)* )? ')'
-  case class Parameter(typeName: TypeName, id: Option[Identifier], indexed: Boolean) 
-  // Note: The above definition of IndexParameterList and ParameterList look redundant.
+  // -- The above look redundant. Also rewrite to fix the location specifier bug in TypeName --
+  // -- rewrite --
+  // Parameter = LocTypeName 'indexed'? Identifier?
+  // ParameterList = '(' (Parameter (',' Parameter)*)? ')'
+  case class Parameter(typeName: LocTypeName, id: Option[Identifier], indexed: Boolean) 
   case class ParameterList(list: List[Parameter]) 
 
   // -- original --
   // TypeName = ElementaryTypeName | Identifier StorageLocation? | Mapping | ArrayTypeName
-  // -- rewritten --
+  // -- There's a bug above. Location specifiers should follow another type name, and cannot appear in mappings.
+  // -- first rewrite --
+  // TypeName = ElementaryTypeName | Mapping | ArrayTypeName
+  // LocTypeName = TypeName StorageLocation?
+  // -- second rewrite: remove left recursion --
   // TypeName = TypeNameHead TypeNameTail?
-  // TypeNameHead = ElementaryTypeName | StorageLocationTypeName | Mapping
+  // TypeNameHead = ElementaryTypeName | Mapping
   // TypeNameTail = TypeNameTailStart TypeNameTail?
   // TypeNameTailStart = ArrayTypeNameTail
   sealed trait TypeNameHead
   sealed trait TypeNameTailStart
   case class TypeNameTail(start: TypeNameTailStart, next: Option[TypeNameTail])
   case class TypeName(head: TypeNameHead, tail: Option[TypeNameTail])
+  case class LocTypeName(name: TypeName, loc: Option[StorageLocation])
 
   // ElementaryTypeName = 'address' | 'bool' | 'string' | 'var' | Int | Uint | Byte | Fixed | Ufixed
   sealed trait ElementaryTypeName extends TypeNameHead // \kl: maybe it's better to introduce a tag
@@ -96,12 +112,15 @@ object SolidityAST
 
   // Mapping = 'mapping' '(' ElementaryTypeName '=>' TypeName ')'
   case class Mapping(elemType: ElementaryType, typeName: TypeName) extends TypeNameHead
-  // For convenience: StorageLocationTypeName = Identifier StorageLocation?
-  case class StorageLocationTypeName(id: Identifier, loc: Option[StorageLocation]) extends TypeNameHead // \kl: can't find this in BNF
 
+  // -- original --
   // ArrayTypeName = TypeName StorageLocation? '[' Expression? ']'
-  // ArrayTypeNameTail = StorageLocation? '[' Expression? ']'
-  case class ArrayTypeNameTail(loc: Option[StorageLocation], exp: Option[Expression]) extends TypeNameTailStart
+  // -- There's a bug above. location specifier is after [] and should only appear in places other than inside mapping.
+  // -- first rewrite --
+  // ArrayTypeName = TypeName '[' Expression? ']'
+  // -- second rewrite: remove left recursion --
+  // ArrayTypeNameTail = '[' Expression? ']'
+  case class ArrayTypeNameTail(exp: Option[Expression]) extends TypeNameTailStart
 
   // StorageLocation = 'memory' | 'storage'
   sealed trait StorageLocation

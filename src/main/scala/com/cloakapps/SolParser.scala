@@ -376,14 +376,14 @@ object SolParser {
 
   // storage location
 
-  def memory:Parser[State,StorageLocation] = for { _ <- spaceString("memory") } yield Memory
-  def storage:Parser[State,StorageLocation] = for { _ <- spaceString("storage") } yield Storage
+  def memory:Parser[State,StorageLocation] = for { _ <- string("memory") } yield Memory
+  def storage:Parser[State,StorageLocation] = for { _ <- string("storage") } yield Storage
   def storageLocation:Parser[State,StorageLocation] = any(List(memory, storage))
 
   // types
 
 
-  def typeNameHead:Parser[State,TypeNameHead] = anyAttempt(List(elementaryTypeName, storageLocationTypeName, mapping))
+  def typeNameHead:Parser[State,TypeNameHead] = anyAttempt(List(elementaryTypeName, mapping))
   def typeNameTailStart:Parser[State,TypeNameTailStart] = attempt(arrayTypeNameTail)
   def typeNameTail:Parser[State,TypeNameTail] = for {
     start <- typeNameTailStart
@@ -396,6 +396,10 @@ object SolParser {
     tail <- optional(typeNameTail)
   } yield TypeName(head, toOption(tail))
 
+  def locTypeName:Parser[State, LocTypeName] = for {
+    name <- typeName
+    loc <- optional(storageLocation)
+  } yield LocTypeName(name, toOption(loc))
 
   def addressType:Parser[State,ElementaryTypeName] = for { _ <- string("address") } yield AddressType
   def boolType:Parser[State,ElementaryTypeName] = for { _ <- string("bool") } yield BoolType
@@ -408,6 +412,7 @@ object SolParser {
   def ufixedType:Parser[State,ElementaryTypeName] = for { s <- prefixed(string("ufixed"))(xdigits) } yield UfixedType(s)
 
   def elementaryType:Parser[State,ElementaryType] = for {
+    _ <- whiteSpaces
     t <- anyAttempt(List(addressType,boolType,stringType,varType, intType, uintType, byteType, fixedType, ufixedType)) 
   } yield ElementaryType(t)
 
@@ -416,15 +421,6 @@ object SolParser {
   } yield t match {
     case ElementaryType(name) => name
   }
-
-  def storageLocationTypeName:Parser[State,TypeNameHead] = for {
-
-    _ <- whiteSpace1
-    id <- identifier
-    loc <- optional(storageLocation)
-    _ <- whiteSpaces
-  } yield StorageLocationTypeName(id, toOption(loc))
-
 
   def mapping:Parser[State,TypeNameHead] = for {
     _ <- string("mapping")
@@ -435,20 +431,16 @@ object SolParser {
     _ <- sep(")")
   } yield Mapping(elemType, name)
 
-
-
   def arrayTypeNameTail:Parser[State,TypeNameTailStart] = for {
     //name <- typeName
-    storage <- optional(storageLocation)
-    _ <- whiteSpace1
     _ <- sep("[")
     exp <- optional(expression)
     _ <- sep("]")
-  } yield ArrayTypeNameTail(toOption(storage), toOption(exp))
+  } yield ArrayTypeNameTail(toOption(exp))
 
   def variableDeclaration:Parser[State,VariableDeclaration] = for {
-    name <- typeName
-    _ <- whiteSpace1
+    name <- locTypeName
+    _ <- whiteSpaces
     id <- identifier
   } yield VariableDeclaration(name, id)
 
@@ -559,7 +551,7 @@ object SolParser {
   // parameter/list
 
   def parameter:Parser[State,Parameter] = for {
-    typeName <- typeName   
+    typeName <- locTypeName
     _ <- whiteSpaces
     indexed <- optional(string("indexed"))
     _ <- whiteSpaces
@@ -568,9 +560,9 @@ object SolParser {
 
   def parameterList:Parser[State,ParameterList] = for {
     _ <- sep("(")
-    params <- interleave(parameter)(sep(","))
+    params <- optional(interleave(parameter)(sep(",")))
     _ <- sep(")")
-  } yield ParameterList(params)
+  } yield ParameterList(toOption(params).getOrElse(List()))
 
   // function modifiers
 
@@ -653,7 +645,7 @@ object SolParser {
 
   def enumDefinition:Parser[State,ContractPart] = for {
     _ <- string("enum")
-    id <- spaceSeq(identifier) 
+    id <- identifier
     _ <- sep("{")
     values <- interleave(enumValue)(sep(","))
     _ <- sep("}")
@@ -661,8 +653,9 @@ object SolParser {
 
   def eventDefinition:Parser[State,ContractPart] = for {
     _ <- string("event")
-    id <- spaceSeq(identifier) 
-    params <- spaceSeq(parameterList)
+    id <- identifier 
+    _ <- whiteSpaces
+    params <- parameterList
     anon <- optional(spaceString("anonymous"))
     _ <- sep(";") 
   } yield EventDefinition(id, params, isPresent(anon))
@@ -675,6 +668,7 @@ object SolParser {
     } yield params
 
     for {
+      _ <- whiteSpaces
       _ <- string("function") 
       _ <- whiteSpaces
       id <- optional(identifier)
@@ -693,9 +687,8 @@ object SolParser {
 
   def modifierDefinition:Parser[State,ContractPart] = for {
     _ <- string("modifier")
-    _ <- whiteSpace1
     id <- identifier
-    params <- optional(spaceSeq(parameterList))
+    params <- optional(parameterList)
     _ <- whiteSpaces
     block <- blockStatement
   } yield ModifierDefinition(id, toOption(params).getOrElse(ParameterList(List())), block)
@@ -742,16 +735,16 @@ object SolParser {
 
   def contractDefinition:Parser[State,ContractDefinition] = {
     def inheritance:Parser[State,List[InheritanceSpecifier]] = for {
-      _ <- whiteSpace1
+      _ <- whiteSpaces
       _ <- string("is")
-      _ <- whiteSpace1
+      _ <- whiteSpaces
       list <- interleave(inheritanceSpecifier)(sep(","))
     } yield list
 
     for {
       _ <- whiteSpaces
-      defType <- any(List(string("library"), string("contract")))
-      _ <- whiteSpace1
+      defType <- anyAttempt(List(string("library"), string("contract")))
+      _ <- whiteSpaces
       id <- identifier
       inheritance <- optional(inheritance)
       parts <- between(sep("{"), sep("}"), many(contractPart))

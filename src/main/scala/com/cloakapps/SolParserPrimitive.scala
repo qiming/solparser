@@ -167,13 +167,11 @@ object SolParserPrimitive {
     b <- whiteSpaces
   } yield a::b
 
-  // a prefixed by one or more spaces
-  def spaceSeq[A](pa: Parser[State,A]):Parser[State,A] = for {
-  	(a,b) <- seq(whiteSpace1, pa)
-  } yield b
-
-  // string prefixed by one or more spaces
-  def spaceString(s: String):Parser[State,String] = spaceSeq(string(s))
+  // string prefixed by zero or more spaces
+  def spaceString(s: String):Parser[State,String] = for {
+    _ <- whiteSpaces
+    s <- string(s)
+  } yield s
 
   // something surrounded by optional spaces
   def spaceSep[A](separator:Parser[State,A]):Parser[State,A] = between(whiteSpaces, whiteSpaces, separator)
