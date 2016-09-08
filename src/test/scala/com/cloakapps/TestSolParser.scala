@@ -15,16 +15,23 @@ object ResultPrinter {
   }
 }
 
+object TestFile extends App {
+  val r = parseSolFile(sys.env("HOME") + "/etg/etg-ws/examples/puzzle.sol")
+  ResultPrinter.print(r)
+}
+
 object TestParts extends App {
-  var s = """
-    address home;
-    int count;
-    function person() {
-      home = msg.sender;
-    }
+  var s = """ 
+contract Puzzle {
+  address public owner;
+  bool public locked ;
+  uint public reward ;
+  bytes32 public diff ;
+  bytes public solution ;
+}
   """
   println(s)
-  val r = parse(many(contractPart))(s)
+  val r = parseSol(s)
   ResultPrinter.print(r)
 }
 

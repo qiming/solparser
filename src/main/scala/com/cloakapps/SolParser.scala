@@ -31,7 +31,12 @@ object SolParser {
     run(m)(initState,x.toList)
   }
 
+  def parseFile[A](pa:Parser[State,A])(path:String):Result[ParseResult[State,(A,(State,List[Token]))]] = {
+    parse(pa)(io.Source.fromFile(path).mkString)
+  }
+
   def parseSol(x:String):Result[ParseResult[State, (SourceUnit,(State,List[Token]))]] = parse(sourceUnit)(x)
+  def parseSolFile(path:String):Result[ParseResult[State, (SourceUnit,(State,List[Token]))]] = parseFile(sourceUnit)(path)
 
   def getLoc:Parser[State,Int] = for
   {
@@ -715,10 +720,12 @@ object SolParser {
 
   def stateVariableDeclaration:Parser[State,ContractPart] = for {
     typeName <- typeName
+    _ <- whiteSpaces 
     am <- optional(accessModifier)
+    _ <- whiteSpaces 
     id <- identifier
     exp <- optional(seq(sep("="), expression))
-    _ <- char(';')
+    _ <- sep(";")
   } yield StateVariableDeclaration(typeName, toOption(am), id, toOption(exp).map(_._2))
 
   def contractPart:Parser[State,ContractPart] = 
