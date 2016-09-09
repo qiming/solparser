@@ -3,6 +3,7 @@ package com.cloakapps
 import com.cloakapps.SolidityAST._
 import com.cloakapps.SolParser._
 import com.cloakapps.SolParserPrimitive._
+import com.cloakapps.CommentRemover._
 import com.github.luzhuomi.scalazparsec.CharParser._
 
 object ResultPrinter {
@@ -15,6 +16,12 @@ object ResultPrinter {
   }
 }
 
+object TestStrip extends App {
+  val s = List("contract // comment", "some /* other comments */", "and we have /* more", " comments to strip */ until here.") 
+  val t = strip(s);
+  println(t)
+}
+
 object TestFile extends App {
   val r = parseSolFile(sys.env("HOME") + "/etg/etg-ws/examples/puzzle.sol")
   ResultPrinter.print(r)
@@ -22,12 +29,25 @@ object TestFile extends App {
 
 object TestParts extends App {
   var s = """ 
-contract Puzzle {
+contract Puzzle { 
   address public owner;
   bool public locked ;
   uint public reward ;
   bytes32 public diff ;
   bytes public solution ;
+
+  function Puzzle () {
+
+  }
+
+  function (){
+    if ( msg.sender == owner ) {
+    //  if ( locked )
+    //    throw;
+      owner.send(reward);
+    //  reward = msg.value ;
+    }
+  }
 }
   """
   println(s)

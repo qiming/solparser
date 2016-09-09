@@ -234,7 +234,10 @@ object SolidityAST
 
   // '(' Expression ')'
   case class EnclosedExpression(exp: Expression) extends ExpressionHead
-  // Identifier '(' Expression? ( ',' Expression )* ')'
+  // -- original --
+  // FunctionCall = Identifier '(' Expression? ( ',' Expression )* ')'
+  // -- looks wrong. rewrite --
+  // FunctionCall = Identifier '(' (Expression ( ',' Expression )* )? ')'
   sealed trait FunctionCall extends ExpressionHead
   case class FunctionCallExpr(name: Identifier, args: List[Expression]) extends FunctionCall
 
@@ -244,7 +247,7 @@ object SolidityAST
   case class DeleteExpression(exp: Expression) extends ExpressionHead
 
   // Note: BNF bug: FunctionCall is not enough to capture "recipient[1].address.value(10000).call()"
-  // MethodCall = Expression '.' Identifier '(' Expression? ( ',' Expression )* ')'
+  // MethodCall = Expression '.' Identifier '(' (Expression ( ',' Expression )* )? ')'
   //case class MethodCall(obj: Expression, name: Identifier, args: List[Expression]) extends Expression
   case class MethodCallTail(name: Identifier, args: List[Expression]) extends ExpressionTailStart
   

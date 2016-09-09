@@ -10,6 +10,7 @@ import com.github.luzhuomi.scalazparsec.CharParser.{
 } // p for polymorphic
 import com.cloakapps.SolParserPrimitive._
 import com.cloakapps.SolidityAST._
+import com.cloakapps.CommentRemover._
 
 /**
   * Created by Qiming Li on 8/20/2016.
@@ -28,7 +29,9 @@ object SolParser {
       a <- pa
       _ <- eof
     } yield a
-    run(m)(initState,x.toList)
+    val stripped = strip(x.split("\n").toList).mkString("\n")
+    println(stripped)
+    run(m)(initState,stripped.toList)
   }
 
   def parseFile[A](pa:Parser[State,A])(path:String):Result[ParseResult[State,(A,(State,List[Token]))]] = {
@@ -221,9 +224,9 @@ object SolParser {
 
   def functionCallArgs:Parser[State,List[Expression]] = for {
     _ <- sep("(")
-    args <- interleave(expression)(sep(","))
+    args <- optional(interleave(expression)(sep(",")))
     _ <- sep(")")
-  } yield args
+  } yield toOption(args).getOrElse(List())
 
 
   def functionCallExpr:Parser[State,FunctionCallExpr] = for {
@@ -240,10 +243,8 @@ object SolParser {
     //obj <- expression
     _ <- sep(".")
     name <- identifier
-    _ <- sep("(")
-    args <- interleave(expression)(sep(","))
-    _ <- sep(")")
-  } yield MethodCallTail(name, args)
+    args <- functionCallArgs
+  } yield MethodCallTail(name, args);
 
   def newExpression:Parser[State,ExpressionHead] = for {
     _ <- whiteSpaces
@@ -364,10 +365,8 @@ object SolParser {
 
   // exclude commaTail for now since not sure if that was correct.
   def expressionTailStart:Parser[State,ExpressionTailStart] = anyAttempt ( 
-   List(indexAccessTail, memberAccessTail, methodCallTail, 
-        unaryOperationTail, binaryOperationTail, 
-        //commaTail,
-        ternaryExpressionTail)) 
+   List(indexAccessTail, methodCallTail, memberAccessTail, 
+        unaryOperationTail, binaryOperationTail, ternaryExpressionTail)) 
 
   def expressionTail:Parser[State,ExpressionTail] = for {
     start <- expressionTailStart
@@ -386,7 +385,6 @@ object SolParser {
   def storageLocation:Parser[State,StorageLocation] = any(List(memory, storage))
 
   // types
-
 
   def typeNameHead:Parser[State,TypeNameHead] = anyAttempt(List(elementaryTypeName, mapping))
   def typeNameTailStart:Parser[State,TypeNameTailStart] = attempt(arrayTypeNameTail)
@@ -673,11 +671,8 @@ object SolParser {
     } yield params
 
     for {
-      _ <- whiteSpaces
-      _ <- string("function") 
-      _ <- whiteSpaces
+      _ <- sep("function") 
       id <- optional(identifier)
-      _ <- whiteSpaces
       params <- parameterList
       modifiers <- many(functionModifier)
       returns <- optional(returns)
