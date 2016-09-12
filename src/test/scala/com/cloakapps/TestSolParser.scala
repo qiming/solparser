@@ -27,8 +27,7 @@ object TestStrip extends App {
 }
 
 object TestFile extends App {
-  val r = parseSolFile(sys.env("HOME") + "/etg/etg-ws/examples/puzzle.sol")
-  ResultPrinter.print(r)
+  args.foreach(file => ResultPrinter.print(parseSolFile(file)))
 }
 
 object TestParts extends App {

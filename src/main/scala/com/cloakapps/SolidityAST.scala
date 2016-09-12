@@ -34,6 +34,24 @@ object SolidityAST
   // ContractPart = StateVariableDeclaration | UsingForDeclaration
   // | StructDefinition | ModifierDefinition | FunctionDefinition | EventDefinition | EnumDefinition
   sealed trait ContractPart
+
+  // Modifiers can be applied to both variables and functions
+  //
+  // http://solidity.readthedocs.io/en/latest/miscellaneous.html#modifiers
+  // 
+  // Example: function register() payable costs(price) { ... }
+  // where costs(price) is a custom modifier defined somewhere else
+  //
+  // -- write into BNF --
+  // VisibilitySpec = 'external' | 'internal' | 'public' | 'private'
+  // Modifier = 'constant' | 'anonymous' | 'payable' | FunctionCall | Identifier
+  // -- in progress --
+  sealed trait VisibilitySpec
+  case object ExternalSpec extends VisibilitySpec
+  case object InternalSpec extends VisibilitySpec
+  case object PublicSpec extends VisibilitySpec
+  case object PrivateSpec extends VisibilitySpec
+
   // StateVariableDeclaration = TypeName ( 'public' | 'internal' | 'private' )? Identifier ('=' Expression)? ';'
   // Note: state variables are always in storage.
   case class StateVariableDeclaration(typeName:TypeName,accessMod:Option[AccessModifier],id:Identifier, exp: Option[Expression]) extends ContractPart
@@ -47,10 +65,13 @@ object SolidityAST
 
   // ModifierDefinition = 'modifier' Identifier ParameterList? Block
   case class ModifierDefinition(id:Identifier, paras:ParameterList, block:Block) extends ContractPart 
+
+
   // FunctionDefinition = 'function' Identifier? ParameterList
   // ( FunctionCall | Identifier | 'constant' | 'external' | 'public' | 'internal' | 'private' )*
   // ( 'returns' ParameterList )? Block
   case class FunctionDefinition(id:Option[Identifier], paras:ParameterList, funcMod:List[FunctionModifier], retParas:ParameterList, block:Block) extends ContractPart
+
 
   // EventDefinition = 'event' Identifier IndexedParameterList 'anonymous'? ';'
   case class EventDefinition(id: Identifier, params: ParameterList, anonymous: Boolean) extends ContractPart
@@ -70,6 +91,7 @@ object SolidityAST
 	case class IdentifierModifier(id:Identifier) extends FunctionModifier
 	case class ConstantModifier() extends FunctionModifier
 	case class ExternalModifier() extends FunctionModifier
+
 
   // -- original --
   // VariableDeclaration = TypeName Identifier
@@ -93,11 +115,11 @@ object SolidityAST
   // TypeName = ElementaryTypeName | Identifier StorageLocation? | Mapping | ArrayTypeName
   // -- There's a bug above. Location specifiers should follow another type name, and cannot appear in mappings.
   // -- first rewrite --
-  // TypeName = ElementaryTypeName | Mapping | ArrayTypeName
+  // TypeName = ElementaryTypeName | Mapping | ArrayTypeName | Identifier
   // LocTypeName = TypeName StorageLocation?
   // -- second rewrite: remove left recursion --
   // TypeName = TypeNameHead TypeNameTail?
-  // TypeNameHead = ElementaryTypeName | Mapping
+  // TypeNameHead = ElementaryTypeName | Mapping | Identifier
   // TypeNameTail = TypeNameTailStart TypeNameTail?
   // TypeNameTailStart = ArrayTypeNameTail
   sealed trait TypeNameHead
@@ -112,6 +134,8 @@ object SolidityAST
 
   // Mapping = 'mapping' '(' ElementaryTypeName '=>' TypeName ')'
   case class Mapping(elemType: ElementaryType, typeName: TypeName) extends TypeNameHead
+
+  case class CustomType(id: Identifier) extends TypeNameHead
 
   // -- original --
   // ArrayTypeName = TypeName StorageLocation? '[' Expression? ']'

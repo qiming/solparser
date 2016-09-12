@@ -386,7 +386,7 @@ object SolParser {
 
   // types
 
-  def typeNameHead:Parser[State,TypeNameHead] = anyAttempt(List(elementaryTypeName, mapping))
+  def typeNameHead:Parser[State,TypeNameHead] = anyAttempt(List(elementaryTypeName, mapping, customType))
   def typeNameTailStart:Parser[State,TypeNameTailStart] = attempt(arrayTypeNameTail)
   def typeNameTail:Parser[State,TypeNameTail] = for {
     start <- typeNameTailStart
@@ -433,6 +433,10 @@ object SolParser {
     name <- typeName
     _ <- sep(")")
   } yield Mapping(elemType, name)
+
+  def customType:Parser[State, TypeNameHead] = for {
+    id <- identifier
+  } yield CustomType(id)
 
   def arrayTypeNameTail:Parser[State,TypeNameTailStart] = for {
     //name <- typeName
@@ -686,7 +690,7 @@ object SolParser {
   }
 
   def modifierDefinition:Parser[State,ContractPart] = for {
-    _ <- string("modifier")
+    _ <- sep("modifier")
     id <- identifier
     params <- optional(parameterList)
     _ <- whiteSpaces
