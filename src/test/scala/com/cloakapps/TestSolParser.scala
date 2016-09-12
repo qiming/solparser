@@ -17,7 +17,11 @@ object ResultPrinter {
 }
 
 object TestStrip extends App {
-  val s = List("contract // comment", "some /* other comments */", "and we have /* more", " comments to strip */ until here.") 
+  val s = List("contract // comment", 
+               "some /* other comments */", 
+               "and we have /* more", 
+               "and inside comments", 
+               " comments to strip */ until here.") 
   val t = strip(s);
   println(t)
 }
