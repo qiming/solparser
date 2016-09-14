@@ -31,30 +31,9 @@ object TestFile extends App {
 }
 
 object TestParts extends App {
-  var s = """ 
-contract Puzzle { 
-  address public owner;
-  bool public locked ;
-  uint public reward ;
-  bytes32 public diff ;
-  bytes public solution ;
-
-  function Puzzle () {
-
-  }
-
-  function (){
-    if ( msg.sender == owner ) {
-    //  if ( locked )
-    //    throw;
-      owner.send(reward);
-    //  reward = msg.value ;
-    }
-  }
-}
-  """
+  var s = """function random(uint Max) constant private returns (uint256 result){}"""
   println(s)
-  val r = parseSol(s)
+  val r = parse(functionDefinition)(s)
   ResultPrinter.print(r)
 }
 

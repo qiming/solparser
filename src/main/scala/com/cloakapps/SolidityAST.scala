@@ -45,16 +45,24 @@ object SolidityAST
   // -- write into BNF --
   // VisibilitySpec = 'external' | 'internal' | 'public' | 'private'
   // Modifier = 'constant' | 'anonymous' | 'payable' | FunctionCall | Identifier
-  // -- in progress --
   sealed trait VisibilitySpec
   case object ExternalSpec extends VisibilitySpec
   case object InternalSpec extends VisibilitySpec
   case object PublicSpec extends VisibilitySpec
   case object PrivateSpec extends VisibilitySpec
+  sealed trait Modifier
+  case object ConstantModifier extends Modifier
+  case object AnonymousModifier extends Modifier
+  case object PayableModifier extends Modifier
+  case class FunctionCallModifier(call: FunctionCallExpr) extends Modifier
+  case class IdentifierModifier(id:Identifier) extends Modifier
 
+  // -- original --
   // StateVariableDeclaration = TypeName ( 'public' | 'internal' | 'private' )? Identifier ('=' Expression)? ';'
+  // -- BNF bug: modifiers not included. rewrite --
+  // StateVariableDeclaration = TypeName ( VisibilitySpec | Modifier )* Identifier ('=' Expression)? ';'
   // Note: state variables are always in storage.
-  case class StateVariableDeclaration(typeName:TypeName,accessMod:Option[AccessModifier],id:Identifier, exp: Option[Expression]) extends ContractPart
+  case class StateVariableDeclaration(typeName:TypeName,mod:List[Either[VisibilitySpec,Modifier]],id:Identifier, exp: Option[Expression]) extends ContractPart
   // UsingForDeclaration = 'using' Identifier 'for' ('*' | TypeName) ';'
   // Note: using A for B is like adding method extensions from library A to type B.
   case class UsingForDeclaration(id: Identifier, wildcardOrName: Option[TypeName]) extends ContractPart
@@ -67,10 +75,13 @@ object SolidityAST
   case class ModifierDefinition(id:Identifier, paras:ParameterList, block:Block) extends ContractPart 
 
 
+  // -- original --
   // FunctionDefinition = 'function' Identifier? ParameterList
   // ( FunctionCall | Identifier | 'constant' | 'external' | 'public' | 'internal' | 'private' )*
   // ( 'returns' ParameterList )? Block
-  case class FunctionDefinition(id:Option[Identifier], paras:ParameterList, funcMod:List[FunctionModifier], retParas:ParameterList, block:Block) extends ContractPart
+  // -- rewrite --
+  // FunctionDefinition = 'function' Identifier? ParameterList ( VisibilitySpec | Modifier )* ( 'returns' ParameterList )? Block
+  case class FunctionDefinition(id:Option[Identifier], paras:ParameterList, mod:List[Either[VisibilitySpec,Modifier]], retParas:ParameterList, block:Block) extends ContractPart
 
 
   // EventDefinition = 'event' Identifier IndexedParameterList 'anonymous'? ';'
@@ -79,19 +90,6 @@ object SolidityAST
   // EnumDefinition = 'enum' Identifier '{' EnumValue? (',' EnumValue)* '}'
   case class EnumDefinition(id: Identifier, vals:List[EnumValue]) extends ContractPart
   type EnumValue = Identifier
-
-  sealed trait AccessModifier 
-  sealed trait FunctionModifier  // Not sure whether can be merged with AccessModifier? TODO
-
-  case class PublicModifier() extends AccessModifier with FunctionModifier
-  case class InternalModifier() extends AccessModifier with FunctionModifier
-  case class PrivateModifier() extends AccessModifier with FunctionModifier
-
-	case class FunctionCallModifier(call: FunctionCallExpr) extends FunctionModifier
-	case class IdentifierModifier(id:Identifier) extends FunctionModifier
-	case class ConstantModifier() extends FunctionModifier
-	case class ExternalModifier() extends FunctionModifier
-
 
   // -- original --
   // VariableDeclaration = TypeName Identifier

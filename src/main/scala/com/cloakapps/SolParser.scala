@@ -571,80 +571,65 @@ object SolParser {
     _ <- sep(")")
   } yield ParameterList(toOption(params).getOrElse(List()))
 
-  // function modifiers
+  // modifiers
 
-  def functionCallModifier:Parser[State,FunctionCallModifier] = for {
+  def functionCallModifier:Parser[State,Modifier] = for {
     f <- functionCallExpr
   } yield FunctionCallModifier(f)
 
-  def functionCallFM:Parser[State,FunctionModifier] = for {
-    f <- functionCallModifier
-  } yield f
-
-  def identifierModifier:Parser[State,IdentifierModifier] = for {
+  def identifierModifier:Parser[State,Modifier] = for {
     id <- identifier
   } yield IdentifierModifier(id)
 
-  def identifierFM:Parser[State,FunctionModifier] = for {
-    id <- identifierModifier
-  } yield id
-
-  def constantModifier:Parser[State,ConstantModifier] = for {
+  def constantModifier:Parser[State,Modifier] = for {
     _ <- string("constant")
-  } yield ConstantModifier()
+  } yield ConstantModifier
 
-  def constantFM:Parser[State,FunctionModifier] = for {
-    c <- constantModifier
-  } yield c
+  def anonymousModifier:Parser[State,Modifier] = for {
+    _ <- string("anonymous")
+  } yield AnonymousModifier
 
-  def externalModifier:Parser[State,ExternalModifier] = for {
+  def payableModifier:Parser[State,Modifier] = for {
+    _ <- string("payable")
+  } yield PayableModifier
+
+  def modifier:Parser[State,Modifier] = anyAttempt(List(constantModifier, anonymousModifier, payableModifier, functionCallModifier, identifierModifier))
+
+  // state variables can only be modified by 'constant'
+  def varModifier:Parser[State,Modifier] = constantModifier
+  // function can only be modified by 'constant', 'payable', or custom modifiers
+  def funcModifier:Parser[State,Modifier] = anyAttempt(List(constantModifier, payableModifier, functionCallModifier, identifierModifier))
+  // events can only be modified by 'anonymous'
+  def eventModifier:Parser[State,Modifier] = anonymousModifier
+
+  // visibility specifiers
+
+  def externalSpec:Parser[State,VisibilitySpec] = for {
     _ <- string("external")
-  } yield ExternalModifier()
+  } yield ExternalSpec
 
-  def externalFM:Parser[State,FunctionModifier] = for {
-    e <- externalModifier
-  } yield e
-
-  def publicModifier:Parser[State,PublicModifier] = for {
+  def publicSpec:Parser[State,VisibilitySpec] = for {
     _ <- string("public")
-  } yield PublicModifier()
+  } yield PublicSpec
 
-  def publicFM:Parser[State,FunctionModifier] = for {
-    p <- publicModifier
-  } yield p
-
-  def publicAM:Parser[State,AccessModifier] = for {
-    p <- publicModifier
-  } yield p
-
-  def internalModifier:Parser[State,InternalModifier] = for {
+  def internalSpec:Parser[State,VisibilitySpec] = for {
     _ <- string("internal")
-  } yield InternalModifier()
+  } yield InternalSpec
 
-  def internalFM:Parser[State,FunctionModifier] = for {
-    i <- internalModifier
-  } yield i
-
-  def internalAM:Parser[State,AccessModifier] = for {
-    i <- internalModifier
-  } yield i
-
-  def privateModifier:Parser[State,PrivateModifier] = for {
+  def privateSpec:Parser[State,VisibilitySpec] = for {
     _ <- string("private")
-  } yield PrivateModifier()
+  } yield PrivateSpec
 
-  def privateFM:Parser[State,FunctionModifier] = for {
-    p <- privateModifier
-  } yield p
+  def visibilitySpec:Parser[State,VisibilitySpec] = anyAttempt(List(externalSpec, publicSpec, internalSpec, privateSpec))
 
-  def privateAM:Parser[State,AccessModifier] = for {
-    p <- privateModifier
-  } yield p
+  // in both state variable and function definitions, visibility specifiers are always mixed with modifiers.
+  def varVisibilityOrModifier:Parser[State, Either[VisibilitySpec,Modifier]] = for {
+    mod <- between(whiteSpaces, whiteSpaces, either1(visibilitySpec)(varModifier))
+  } yield toEither(mod)
 
-  def functionModifier:Parser[State,FunctionModifier] = 
-    anyAttempt(List(functionCallFM, identifierFM, constantFM, externalFM, publicFM, internalFM, privateFM))
-
-  def accessModifier:Parser[State,AccessModifier] = anyAttempt(List(publicAM, internalAM, privateAM))
+  def funcVisibilityOrModifier:Parser[State, Either[VisibilitySpec,Modifier]] = for {
+    mod <- between(whiteSpaces, whiteSpaces, either1(visibilitySpec)(funcModifier))
+  } yield toEither(mod)
 
   // contract parts
 
@@ -678,15 +663,11 @@ object SolParser {
       _ <- sep("function") 
       id <- optional(identifier)
       params <- parameterList
-      modifiers <- many(functionModifier)
+      mod <- many(funcVisibilityOrModifier)
       returns <- optional(returns)
       _ <- whiteSpaces
       body <- blockStatement
-    } yield FunctionDefinition(toOption(id), 
-                               params, 
-                               modifiers, 
-                               toOption(returns).getOrElse(ParameterList(List())), 
-                               body)
+    } yield FunctionDefinition(toOption(id), params, mod, toOption(returns).getOrElse(ParameterList(List())), body)
   }
 
   def modifierDefinition:Parser[State,ContractPart] = for {
@@ -720,12 +701,12 @@ object SolParser {
   def stateVariableDeclaration:Parser[State,ContractPart] = for {
     typeName <- typeName
     _ <- whiteSpaces 
-    am <- optional(accessModifier)
-    _ <- whiteSpaces 
+    mod <- many(varVisibilityOrModifier)
+    //_ <- whiteSpaces 
     id <- identifier
     exp <- optional(seq(sep("="), expression))
     _ <- sep(";")
-  } yield StateVariableDeclaration(typeName, toOption(am), id, toOption(exp).map(_._2))
+  } yield StateVariableDeclaration(typeName, mod, id, toOption(exp).map(_._2))
 
   def contractPart:Parser[State,ContractPart] = 
     anyAttempt(List(stateVariableDeclaration, usingForDeclaration, 
