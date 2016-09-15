@@ -139,10 +139,27 @@ object SolParser {
 
   // expressions
 
-  def identifier:Parser[State,Identifier] = for {
-    c  <- sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z'))
-    cs <- many( sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z') || x.isDigit ) )
-  } yield (c::cs).mkString
+  // words that cannot be used as identifiers. 
+  // TODO: this list may be incomplete.
+  def reservedWords = List("import", "contract", 
+                           "if", "for", "while", "break", "new", "delete",
+                           "constant", "anonymous", "payable", 
+                           "private", "internal", "public", "external",
+                           "function", "returns", "modifier", "event", 
+                           "storage", "memory")
+  def reserved:Parser[State, Identifier] = anyAttempt(reservedWords.map(x => string(x)))
+
+  def identifier:Parser[State, Identifier] = {
+    def _identifier:Parser[State,Identifier] = for {
+      c  <- sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z'))
+      cs <- many( sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z') || x.isDigit ) )
+    } yield (c::cs).mkString
+
+    for {
+      _ <- notFollowedBy(reserved)
+      x <- _identifier
+    } yield x
+  }
 
   def identifierExpr:Parser[State,ExpressionHead] = for {
     s <- identifier
