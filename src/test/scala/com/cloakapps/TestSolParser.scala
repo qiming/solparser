@@ -31,19 +31,18 @@ object TestFile extends App {
 }
 
 object TestPart1 extends App {
-  var s = """uint newClaimPrice"""
-  val r = parse(parameter)(s)
+  var s = """returns(uint CollectedFees)"""
+  val r = parse(_returns)(s)
   ResultPrinter.print(r)
 }
 
 object TestParts extends App {
-  var s = """ event ThroneClaimed(
-        address usurperEtherAddress,
-        string usurperName,
-        uint newClaimPrice
-    );
+  var s = """ 
+    function WatchFees() constant returns(uint CollectedFees) {
+        CollectedFees = fees / 1 wei;
+    }
 """
-  val r = parse(eventDefinition)(s)
+  val r = parse(functionDefinition)(s)
   ResultPrinter.print(r)
 }
 

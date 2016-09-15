@@ -156,7 +156,7 @@ object SolParser {
 
   def identifier:Parser[State, Identifier] = {
     for {
-      _ <- lookAhead(notFollowedBy(reserved))
+      _ <- notFollowedBy(seq(reserved, sat(x => (x < 'a' || x > 'z' || x < 'A' || x > 'Z') && ! x.isDigit && x != '_')))
       x <- _identifier
     } yield x
   }
@@ -666,19 +666,19 @@ object SolParser {
     _ <- sep(";") 
   } yield EventDefinition(id, params, toOption(mod))
 
-  def functionDefinition:Parser[State,ContractPart] = {
-    def returns:Parser[State,ParameterList] = for {
-      _ <- whiteSpaces
-      _ <- string("returns")
-      params <- parameterList
-    } yield params
+  def _returns:Parser[State,ParameterList] = for {
+    _ <- whiteSpaces
+    _ <- string("returns")
+    params <- parameterList
+  } yield params
 
+  def functionDefinition:Parser[State,ContractPart] = {
     for {
       _ <- sep("function") 
       id <- optional(identifier)
       params <- parameterList
       mod <- many(funcVisibilityOrModifier)
-      returns <- optional(returns)
+      returns <- optional(_returns)
       _ <- whiteSpaces
       body <- blockStatement
     } yield FunctionDefinition(toOption(id), params, mod, toOption(returns).getOrElse(ParameterList(List())), body)
