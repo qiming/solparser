@@ -145,18 +145,18 @@ object SolParser {
                            "if", "for", "while", "break", "new", "delete",
                            "constant", "anonymous", "payable", 
                            "private", "internal", "public", "external",
-                           "function", "returns", "modifier", "event", 
+                           "function", "returns", "modifier", "event", "struct", 
                            "storage", "memory")
   def reserved:Parser[State, Identifier] = anyAttempt(reservedWords.map(x => string(x)))
 
-  def identifier:Parser[State, Identifier] = {
-    def _identifier:Parser[State,Identifier] = for {
-      c  <- sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z'))
-      cs <- many( sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z') || x.isDigit ) )
-    } yield (c::cs).mkString
+  def _identifier:Parser[State,Identifier] = for {
+    c  <- sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z'))
+    cs <- many( sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z') || x.isDigit ) )
+  } yield (c::cs).mkString
 
+  def identifier:Parser[State, Identifier] = {
     for {
-      _ <- notFollowedBy(reserved)
+      _ <- lookAhead(notFollowedBy(reserved))
       x <- _identifier
     } yield x
   }
@@ -576,9 +576,7 @@ object SolParser {
 
   def parameter:Parser[State,Parameter] = for {
     typeName <- locTypeName
-    _ <- whiteSpaces
     indexed <- optional(string("indexed"))
-    _ <- whiteSpaces
     id <- optional(identifier)
   } yield Parameter(typeName, toOption(id), isPresent(indexed))
 
@@ -661,13 +659,12 @@ object SolParser {
   } yield EnumDefinition(id, values)
 
   def eventDefinition:Parser[State,ContractPart] = for {
-    _ <- string("event")
+    _ <- sep("event")
     id <- identifier 
-    _ <- whiteSpaces
     params <- parameterList
-    anon <- optional(spaceString("anonymous"))
+    mod <- optional(eventModifier)
     _ <- sep(";") 
-  } yield EventDefinition(id, params, isPresent(anon))
+  } yield EventDefinition(id, params, toOption(mod))
 
   def functionDefinition:Parser[State,ContractPart] = {
     def returns:Parser[State,ParameterList] = for {

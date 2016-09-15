@@ -85,7 +85,7 @@ object SolidityAST
 
 
   // EventDefinition = 'event' Identifier IndexedParameterList 'anonymous'? ';'
-  case class EventDefinition(id: Identifier, params: ParameterList, anonymous: Boolean) extends ContractPart
+  case class EventDefinition(id: Identifier, params: ParameterList, mod: Option[Modifier]) extends ContractPart
 
   // EnumDefinition = 'enum' Identifier '{' EnumValue? (',' EnumValue)* '}'
   case class EnumDefinition(id: Identifier, vals:List[EnumValue]) extends ContractPart

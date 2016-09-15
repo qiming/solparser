@@ -30,9 +30,20 @@ object TestFile extends App {
   args.foreach(file => ResultPrinter.print(parseSolFile(file)))
 }
 
+object TestPart1 extends App {
+  var s = """uint newClaimPrice"""
+  val r = parse(parameter)(s)
+  ResultPrinter.print(r)
+}
+
 object TestParts extends App {
-  var s = """uint constant claimPriceAdjustNum = 3;"""
-  val r = parse(stateVariableDeclaration)(s)
+  var s = """ event ThroneClaimed(
+        address usurperEtherAddress,
+        string usurperName,
+        uint newClaimPrice
+    );
+"""
+  val r = parse(eventDefinition)(s)
   ResultPrinter.print(r)
 }
 
