@@ -717,9 +717,7 @@ object SolParser {
 
   def stateVariableDeclaration:Parser[State,ContractPart] = for {
     typeName <- typeName
-    _ <- whiteSpaces 
-    mod <- many(varVisibilityOrModifier)
-    //_ <- whiteSpaces 
+    mod <- many(attempt(varVisibilityOrModifier))
     id <- identifier
     exp <- optional(seq(sep("="), expression))
     _ <- sep(";")

@@ -31,9 +31,8 @@ object TestFile extends App {
 }
 
 object TestParts extends App {
-  var s = """function random(uint Max) constant private returns (uint256 result){}"""
-  println(s)
-  val r = parse(functionDefinition)(s)
+  var s = """uint constant claimPriceAdjustNum = 3;"""
+  val r = parse(stateVariableDeclaration)(s)
   ResultPrinter.print(r)
 }
 
