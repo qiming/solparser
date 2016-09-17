@@ -60,21 +60,12 @@ object SolParser {
   // to make the alternatives backtrackable.
 
 
-  def simpleImport:Parser[State,ImportDirective] = for
-  {
-    _        <- string("import")
-    _        <- whiteSpaces
+  def simpleImport:Parser[State,ImportDirective] = for {
+    _        <- sep("import")
     strLit   <- stringLiteral
-    _        <- whiteSpaces
     maybeId  <- optional(asIdentifier)
-    asId = maybeId match
-    {
-      case -\/(id) => Some(id) // left
-      case \/-(_)  => None     // right
-    }
-    _        <- whiteSpaces
-    _        <- char(';')
-  } yield SimpleImport(strLit, asId)
+    _        <- sep(";")
+  } yield SimpleImport(strLit, toOption(maybeId))
 
 
   def fromImport:Parser[State,ImportDirective] = for
@@ -132,6 +123,7 @@ object SolParser {
 
   def asIdentifier:Parser[State,Identifier] = for
   {
+    _  <- whiteSpaces
     _  <- string("as")
     _  <- whiteSpace1
     id <- identifier

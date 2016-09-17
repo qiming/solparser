@@ -21,3 +21,5 @@ project/plugins/project/
 
 # sublime text
 *.sublime-workspace
+
+*.swp

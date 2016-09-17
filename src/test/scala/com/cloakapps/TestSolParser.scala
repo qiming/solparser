@@ -31,20 +31,17 @@ object TestFile extends App {
 }
 
 object TestPart1 extends App {
-  var s = """returns(uint CollectedFees)"""
-  val r = parse(_returns)(s)
+  var s = """import "./ManagedAccount.sol";"""
+  val r = parse(importDirective)(s)
   ResultPrinter.print(r)
 }
 
 object TestParts extends App {
   var s = """ 
-     event ThroneClaimed(
-        address usurperEtherAddress,
-        string usurperName,
-        uint newClaimPrice
-    );
+  import "./TokenCreation.sol";
+  import "./ManagedAccount.sol";
 """
-  val r = parse(eventDefinition)(s)
+  val r = parse(sourceUnit)(s)
   ResultPrinter.print(r)
 }
 
