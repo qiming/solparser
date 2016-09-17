@@ -149,14 +149,15 @@ object SolParser {
                            "storage", "memory")
   def reserved:Parser[State, Identifier] = anyAttempt(reservedWords.map(x => string(x)))
 
+  def _identifierChar[State, Char] = sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z') || x.isDigit )
   def _identifier:Parser[State,Identifier] = for {
     c  <- sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z'))
-    cs <- many( sat ( x => (x >= 'a' && x <= 'z') || x == '_' || (x >= 'A' && x<= 'Z') || x.isDigit ) )
+    cs <- many(_identifierChar)
   } yield (c::cs).mkString
 
   def identifier:Parser[State, Identifier] = {
     for {
-      _ <- notFollowedBy(seq(reserved, sat(x => (x < 'a' || x > 'z' || x < 'A' || x > 'Z') && ! x.isDigit && x != '_')))
+      _ <- notFollowedBy(seq(reserved, notFollowedBy(_identifierChar)))
       x <- _identifier
     } yield x
   }

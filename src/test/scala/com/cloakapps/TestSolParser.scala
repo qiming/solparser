@@ -38,11 +38,13 @@ object TestPart1 extends App {
 
 object TestParts extends App {
   var s = """ 
-    function WatchFees() constant returns(uint CollectedFees) {
-        CollectedFees = fees / 1 wei;
-    }
+     event ThroneClaimed(
+        address usurperEtherAddress,
+        string usurperName,
+        uint newClaimPrice
+    );
 """
-  val r = parse(functionDefinition)(s)
+  val r = parse(eventDefinition)(s)
   ResultPrinter.print(r)
 }
 
