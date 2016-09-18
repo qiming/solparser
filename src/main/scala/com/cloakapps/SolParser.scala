@@ -135,7 +135,7 @@ object SolParser {
   // TODO: this list may be incomplete.
   def reservedWords = List("import", "contract", 
                            "if", "for", "while", "break", "new", "delete",
-                           "constant", "anonymous", "payable", 
+                           "constant", "anonymous", "payable", "indexed", 
                            "private", "internal", "public", "external",
                            "function", "returns", "modifier", "event", "struct", 
                            "storage", "memory")
@@ -298,7 +298,7 @@ object SolParser {
 
   def postfixUnaryOperation:Parser[State,ExpressionTailStart] = for {
     //exp <- expression
-    op <- spaceSep(postfixUnaryOp)
+    op <- spacesAround(postfixUnaryOp)
   } yield op match {
     case "++" => IncrementPostfixTail
     case "--" => DecrementPostfixTail
@@ -308,7 +308,7 @@ object SolParser {
 
 
   def prefixUnaryOperation:Parser[State,ExpressionHead] = for {
-  	op <- spaceSep(prefixUnaryOp)
+  	op <- spacesAround(prefixUnaryOp)
   	exp <- expression
     _ <- whiteSpaces
   } yield op match {
@@ -325,7 +325,7 @@ object SolParser {
 
   def binaryOperationTail:Parser[State,ExpressionTailStart] = for {
   	//lhs <- expression
-  	op <- spaceSep(binaryOp)
+  	op <- spacesAround(binaryOp)
   	rhs <- expression
     _ <- whiteSpaces
   } yield op match {
@@ -569,7 +569,7 @@ object SolParser {
 
   def parameter:Parser[State,Parameter] = for {
     typeName <- locTypeName
-    indexed <- optional(string("indexed"))
+    indexed <- optional(spacesAround(parameterModifier))
     id <- optional(identifier)
   } yield Parameter(typeName, toOption(id), isPresent(indexed))
 
@@ -601,7 +601,11 @@ object SolParser {
     _ <- string("payable")
   } yield PayableModifier
 
-  def modifier:Parser[State,Modifier] = anyAttempt(List(constantModifier, anonymousModifier, payableModifier, functionCallModifier, identifierModifier))
+  def indexedModifier:Parser[State,Modifier] = for {
+    _ <- string("indexed")
+  } yield IndexedModifier
+
+  def modifier:Parser[State,Modifier] = anyAttempt(List(constantModifier, anonymousModifier, payableModifier, indexedModifier, functionCallModifier, identifierModifier))
 
   // state variables can only be modified by 'constant'
   def varModifier:Parser[State,Modifier] = constantModifier
@@ -609,6 +613,8 @@ object SolParser {
   def funcModifier:Parser[State,Modifier] = anyAttempt(List(constantModifier, payableModifier, functionCallModifier, identifierModifier))
   // events can only be modified by 'anonymous'
   def eventModifier:Parser[State,Modifier] = anonymousModifier
+  // parameters can only be modified by 'index'
+  def parameterModifier:Parser[State,Modifier] = indexedModifier
 
   // visibility specifiers
 
@@ -632,11 +638,11 @@ object SolParser {
 
   // in both state variable and function definitions, visibility specifiers are always mixed with modifiers.
   def varVisibilityOrModifier:Parser[State, Either[VisibilitySpec,Modifier]] = for {
-    mod <- between(whiteSpaces, whiteSpaces, either1(visibilitySpec)(varModifier))
+    mod <- spacesAround(either1(visibilitySpec)(varModifier))
   } yield toEither(mod)
 
   def funcVisibilityOrModifier:Parser[State, Either[VisibilitySpec,Modifier]] = for {
-    mod <- between(whiteSpaces, whiteSpaces, either1(visibilitySpec)(funcModifier))
+    mod <- spacesAround(either1(visibilitySpec)(funcModifier))
   } yield toEither(mod)
 
   // contract parts
@@ -677,6 +683,17 @@ object SolParser {
     } yield FunctionDefinition(toOption(id), params, mod, toOption(returns).getOrElse(ParameterList(List())), body)
   }
 
+  def functionDeclaration:Parser[State,ContractPart] = {
+    for {
+      _ <- sep("function") 
+      id <- optional(identifier)
+      params <- parameterList
+      mod <- many(funcVisibilityOrModifier)
+      returns <- optional(_returns)
+      _ <- sep(";")
+    } yield FunctionDeclaration(toOption(id), params, mod, toOption(returns).getOrElse(ParameterList(List())))
+  }
+
   def modifierDefinition:Parser[State,ContractPart] = for {
     _ <- sep("modifier")
     id <- identifier
@@ -715,7 +732,7 @@ object SolParser {
 
   def contractPart:Parser[State,ContractPart] = 
     anyAttempt(List(stateVariableDeclaration, usingForDeclaration, 
-                    structDefinition, modifierDefinition, functionDefinition, 
+                    structDefinition, modifierDefinition, functionDefinition, functionDeclaration,  
                     eventDefinition, enumDefinition))
 
   // contract definition

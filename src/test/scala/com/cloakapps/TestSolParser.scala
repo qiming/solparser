@@ -31,17 +31,22 @@ object TestFile extends App {
 }
 
 object TestPart1 extends App {
-  var s = """import "./ManagedAccount.sol";"""
-  val r = parse(importDirective)(s)
+  var s = """ function () returns (bool success);"""
+  val r = parse(functionDeclaration)(s)
   ResultPrinter.print(r)
 }
 
 object TestParts extends App {
   var s = """ 
-  import "./TokenCreation.sol";
-  import "./ManagedAccount.sol";
+     event ProposalAdded(
+        uint indexed proposalID,
+        address recipient,
+        uint amount,
+        bool newCurator,
+        string description
+    );
 """
-  val r = parse(sourceUnit)(s)
+  val r = parse(eventDefinition)(s)
   ResultPrinter.print(r)
 }
 

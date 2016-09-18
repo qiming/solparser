@@ -174,9 +174,9 @@ object SolParserPrimitive {
   } yield s
 
   // something surrounded by optional spaces
-  def spaceSep[A](separator:Parser[State,A]):Parser[State,A] = between(whiteSpaces, whiteSpaces, separator)
+  def spacesAround[A](separator:Parser[State,A]):Parser[State,A] = between(whiteSpaces, whiteSpaces, separator)
   // string surrounded by optional spaces
-  def sep(separator:String):Parser[State,String] = spaceSep(string(separator))
+  def sep(separator:String):Parser[State,String] = spacesAround(string(separator))
 
   // string prefixed by another string
   def prefixed(prefix:Parser[State,String])(tail:Parser[State,String]):Parser[State,String] = for {

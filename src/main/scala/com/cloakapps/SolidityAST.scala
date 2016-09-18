@@ -31,8 +31,12 @@ object SolidityAST
   // where owned, mortal and named are all contract themselves, and the "named" contract has a function defined as below:
   //    function named(string32 name) { ... }
 
+  // -- original --
   // ContractPart = StateVariableDeclaration | UsingForDeclaration
   // | StructDefinition | ModifierDefinition | FunctionDefinition | EventDefinition | EnumDefinition
+  // -- rewrite to include function declaration in contract interfaces.
+  // ContractPart = StateVariableDeclaration | UsingForDeclaration
+  // | StructDefinition | ModifierDefinition | FunctionDefinition | EventDefinition | EnumDefinition | FunctionDeclaration 
   sealed trait ContractPart
 
   // Modifiers can be applied to both variables and functions
@@ -54,6 +58,7 @@ object SolidityAST
   case object ConstantModifier extends Modifier
   case object AnonymousModifier extends Modifier
   case object PayableModifier extends Modifier
+  case object IndexedModifier extends Modifier
   case class FunctionCallModifier(call: FunctionCallExpr) extends Modifier
   case class IdentifierModifier(id:Identifier) extends Modifier
 
@@ -82,6 +87,9 @@ object SolidityAST
   // -- rewrite --
   // FunctionDefinition = 'function' Identifier? ParameterList ( VisibilitySpec | Modifier )* ( 'returns' ParameterList )? Block
   case class FunctionDefinition(id:Option[Identifier], paras:ParameterList, mod:List[Either[VisibilitySpec,Modifier]], retParas:ParameterList, block:Block) extends ContractPart
+  // -- BNF bug: There's also function declaration without body
+  // FunctionDeclaration = 'function' Identifier? ParameterList ( VisibilitySpec | Modifier )* ( 'returns' ParameterList )? ';'
+  case class FunctionDeclaration(id:Option[Identifier], paras:ParameterList, mod:List[Either[VisibilitySpec,Modifier]], retParas:ParameterList) extends ContractPart
 
 
   // EventDefinition = 'event' Identifier IndexedParameterList 'anonymous'? ';'
