@@ -178,12 +178,12 @@ object SolidityAST
   case class BlockStatement(statements: List[Statement]) extends Block // if block were not a statement we have to redefine if/while etc.
 
   // statements
-  // ---- original defintion ---------
+  // ---- original definition ---------
   // Statement = IfStatement | WhileStatement | ForStatement | Block | PlaceholderStatement |
   //             ( Continue | Break | Return | Throw | SimpleStatement | ExpressionStatement ) ';'
   // SimpleStatement = VariableDefinition | ExpressionStatement
   // ExpressionStatement = Expression | VariableDefinition // \kl VariableDefintion is also in SimpleStatement
-  // ----- written defintiion -----------
+  // ----- written definition -----------
   // \kl Re-writing as follows
   // Statement = IfStatement | WhileStatement | ForStatement | Block | PlaceholderStatement |
   //             ( Continue | Break | Return | Throw | VariableDefinition | Expression ) ';'
@@ -271,8 +271,8 @@ object SolidityAST
   sealed trait FunctionCall extends ExpressionHead
   case class FunctionCallExpr(name: Identifier, args: List[Expression]) extends FunctionCall
 
-  // 'new' Identifier
-  case class NewExpression(id: Identifier) extends ExpressionHead
+  // 'new' Expression
+  case class NewExpression(exp: Expression) extends ExpressionHead
   // 'delete' Expression
   case class DeleteExpression(exp: Expression) extends ExpressionHead
 

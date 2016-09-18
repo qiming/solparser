@@ -204,7 +204,7 @@ object SolParserPrimitive {
 		} yield x.flatMap(x => x).mkString
 	}
 
-	// strings like "0x1234"
+	// strings like "24x1234"
   def xdigits:Parser[State,String] = for {
   	a <- many1(digit)
   	x <- char('x')

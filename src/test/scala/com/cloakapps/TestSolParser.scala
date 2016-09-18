@@ -31,22 +31,127 @@ object TestFile extends App {
 }
 
 object TestPart1 extends App {
-  var s = """ function () returns (bool success);"""
-  val r = parse(functionDeclaration)(s)
+  var s = """ if (quorum >= minQuorum(p.amount) && p.yea > p.nay && proposalCheck) {
+            if (!p.recipient.call.value(p.amount)(_transactionData))
+                throw;
+
+            p.proposalPassed = true;
+            _success = true;
+
+            // only create reward tokens when ether is not sent to the DAO itself and
+            // related addresses. Proxy addresses should be forbidden by the curator.
+            if (p.recipient != address(this) && p.recipient != address(rewardAccount)
+                && p.recipient != address(DAOrewardAccount)
+                && p.recipient != address(extraBalance)
+                && p.recipient != address(curator)) {
+
+                rewardToken[address(this)] += p.amount;
+                totalRewardToken += p.amount;
+            }
+        }
+   """
+  val r = parse(ifStatement)(s)
+  ResultPrinter.print(r)
+}
+
+object TestPart2 extends App {
+  var s = """ 
+            if (!p.recipient.call.value(p.amount)(_transactionData))
+                throw;
+   """
+  val r = parse(ifStatement)(s)
   ResultPrinter.print(r)
 }
 
 object TestParts extends App {
   var s = """ 
-     event ProposalAdded(
-        uint indexed proposalID,
-        address recipient,
-        uint amount,
-        bool newCurator,
-        string description
-    );
+     function executeProposal(
+        uint _proposalID,
+        bytes _transactionData
+    ) noEther returns (bool _success) {
+
+        Proposal p = proposals[_proposalID];
+
+        uint waitPeriod = p.newCurator
+            ? splitExecutionPeriod
+            : executeProposalPeriod;
+        // If we are over deadline and waiting period, assert proposal is closed
+        if (p.open && now > p.votingDeadline + waitPeriod) {
+            closeProposal(_proposalID);
+            return;
+        }
+
+        // Check if the proposal can be executed
+        if (now < p.votingDeadline  // has the voting deadline arrived?
+            // Have the votes been counted?
+            || !p.open
+            // Does the transaction code match the proposal?
+            || p.proposalHash != sha3(p.recipient, p.amount, _transactionData)) {
+
+            throw;
+        }
+
+        // If the curator removed the recipient from the whitelist, close the proposal
+        // in order to free the deposit and allow unblocking of voters
+        if (!isRecipientAllowed(p.recipient)) {
+            closeProposal(_proposalID);
+            p.creator.send(p.proposalDeposit);
+            return;
+        }
+
+        bool proposalCheck = true;
+
+        if (p.amount > actualBalance())
+            proposalCheck = false;
+
+        uint quorum = p.yea + p.nay;
+
+        // require 53% for calling newContract()
+        if (_transactionData.length >= 4 && _transactionData[0] == 0x68
+            && _transactionData[1] == 0x37 && _transactionData[2] == 0xff
+            && _transactionData[3] == 0x1e
+            && quorum < minQuorum(actualBalance() + rewardToken[address(this)])) {
+
+                proposalCheck = false;
+        }
+
+        if (quorum >= minQuorum(p.amount)) {
+            if (!p.creator.send(p.proposalDeposit))
+                throw;
+
+            lastTimeMinQuorumMet = now;
+            // set the minQuorum to 20% again, in the case it has been reached
+            if (quorum > totalSupply / 5)
+                minQuorumDivisor = 5;
+        }
+
+        // Execute result
+        if (quorum >= minQuorum(p.amount) && p.yea > p.nay && proposalCheck) {
+            if (!p.recipient.call.value(p.amount)(_transactionData))
+                throw;
+
+            p.proposalPassed = true;
+            _success = true;
+
+            // only create reward tokens when ether is not sent to the DAO itself and
+            // related addresses. Proxy addresses should be forbidden by the curator.
+            if (p.recipient != address(this) && p.recipient != address(rewardAccount)
+                && p.recipient != address(DAOrewardAccount)
+                && p.recipient != address(extraBalance)
+                && p.recipient != address(curator)) {
+
+                rewardToken[address(this)] += p.amount;
+                totalRewardToken += p.amount;
+            }
+        }
+
+        closeProposal(_proposalID);
+
+        // Initiate event
+        ProposalTallied(_proposalID, _success, quorum);
+    }
 """
-  val r = parse(eventDefinition)(s)
+  val r = parse(functionDefinition)(s)
   ResultPrinter.print(r)
 }
 

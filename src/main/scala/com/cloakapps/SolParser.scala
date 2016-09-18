@@ -218,11 +218,25 @@ object SolParser {
     u <- anyAttempt(List(moneyUnit, timeUnit))
   } yield u
 
+  // strings like "0xff1234"
+  def _hexNumber:Parser[State,String] = for {
+    _ <- string("0x")
+    s <- hex
+  } yield "0x" + s
+
+  def _decimalNumber:Parser[State,String] = for {
+    d <- many1(digit)
+  } yield d.mkString
+
   def numberLiteral:Parser[State,ExpressionHead] = for {
+    n <- anyAttempt(List(_hexNumber, _decimalNumber))
+    /*
     prefix <- optional(string("0x"))
-    cs <- many1(digit)
-    maybeUnit <- optional(numberUnit)
-  } yield NumberLiteral(toOption(prefix).getOrElse("") + cs.mkString, toOption(maybeUnit))
+    cs <- if (isPresent(prefix)) many1(hex) else many1(digit)
+    */
+    maybeUnit <- optional(spacesAround(numberUnit))
+  //} yield NumberLiteral(toOption(prefix).getOrElse("") + cs.mkString, toOption(maybeUnit))
+  } yield NumberLiteral(n, toOption(maybeUnit))
 
   def primaryExpression:Parser[State,ExpressionHead] = anyAttempt(List(identifierExpr, booleanLiteral, numberLiteral, stringLiteralExpr))
 
@@ -260,8 +274,8 @@ object SolParser {
     _ <- whiteSpaces
     _ <- string("new")
     _ <- whiteSpace1
-    id <- identifier
-  } yield NewExpression(id)
+    exp <- expression
+  } yield NewExpression(exp)
 
   def delExpression:Parser[State,ExpressionHead] = for {
     _ <- whiteSpaces
