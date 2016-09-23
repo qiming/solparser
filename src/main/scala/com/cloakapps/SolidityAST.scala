@@ -250,7 +250,7 @@ object SolidityAST
   // IndexAccess, MethodCall, postfix unary operations, binary operations, comma operation
   // Rewrite expression as
   //   Expression = ExpressionHead ExpressionTail?
-  // where ExpressionHead are original definitions that does not cause left recursion 
+  // where ExpressionHead are original definitions that do not cause left recursion 
   //   ExpressionHead = FunctionCall | '(' Expression ')' | UnaryOperation
   //     | NewExpression | DeleteExpression | PrefixUnaryOperation | PrimaryExpression
   // and 
@@ -277,9 +277,15 @@ object SolidityAST
   case class DeleteExpression(exp: Expression) extends ExpressionHead
 
   // Note: BNF bug: FunctionCall is not enough to capture "recipient[1].address.value(10000).call()"
+  // Note: the call() method can be in the form of address.call.value(amount).gas(amount)(parameter)
+  // was: 
   // MethodCall = Expression '.' Identifier '(' (Expression ( ',' Expression )* )? ')'
+  // now: 
+  // MethodCall = Expression '.' Identifier ( '.' FunctionCallExpr )* '(' (Expression ( ',' Expression )* )? ')'
   //case class MethodCall(obj: Expression, name: Identifier, args: List[Expression]) extends Expression
-  case class MethodCallTail(name: Identifier, args: List[Expression]) extends ExpressionTailStart
+  //case class MethodCallTail(name: Identifier, args: List[Expression]) extends ExpressionTailStart
+  case class MethodCallTail(name: Identifier, attributes:List[FunctionCallExpr], args: List[Expression]) extends ExpressionTailStart
+
   
   // Expression '.' Identifier
   //case class MemberAccess(obj: Expression, member: Identifier) extends Expression

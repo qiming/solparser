@@ -20,4 +20,4 @@ resolvers += "luzhuomi github repo" at "https://raw.githubusercontent.com/luzhuo
 
 //libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.5"
 
-libraryDependencies += "com.github.luzhuomi" %% "scalazparsec" % "0.1.3"
+libraryDependencies += "com.github.luzhuomi" %% "scalazparsec" % "0.1.4"

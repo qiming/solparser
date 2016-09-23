@@ -55,11 +55,9 @@ object TestPart1 extends App {
 }
 
 object TestPart2 extends App {
-  var s = """ 
-            if (!p.recipient.call.value(p.amount)(_transactionData))
-                throw;
+  var s = """ uint constant creationGracePeriod = 40 days;
    """
-  val r = parse(ifStatement)(s)
+  val r = parse(stateVariableDeclaration)(s)
   ResultPrinter.print(r)
 }
 

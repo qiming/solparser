@@ -214,7 +214,7 @@ object SolParser {
   def timeUnit:Parser[State,NumberUnit] = anyAttempt(List(seconds, minutes, hours, days, weeks, years))
 
   def numberUnit:Parser[State,NumberUnit] = for {
-    _ <- whiteSpace1
+    //_ <- whiteSpace1
     u <- anyAttempt(List(moneyUnit, timeUnit))
   } yield u
 
@@ -263,12 +263,19 @@ object SolParser {
     f <- functionCallExpr
   } yield f
 
+  def _dotFunctionCall:Parser[State,FunctionCallExpr] = for {
+    _ <- sep(".")
+    f <- functionCallExpr
+  } yield f
+
   def methodCallTail:Parser[State,ExpressionTailStart] = for {
     //obj <- expression
     _ <- sep(".")
     name <- identifier
+    attr <- many(_dotFunctionCall)
+    _ <- whiteSpaces
     args <- functionCallArgs
-  } yield MethodCallTail(name, args);
+  } yield MethodCallTail(name, attr, args);
 
   def newExpression:Parser[State,ExpressionHead] = for {
     _ <- whiteSpaces
