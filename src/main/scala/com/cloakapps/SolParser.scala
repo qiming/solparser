@@ -230,12 +230,7 @@ object SolParser {
 
   def numberLiteral:Parser[State,ExpressionHead] = for {
     n <- anyAttempt(List(_hexNumber, _decimalNumber))
-    /*
-    prefix <- optional(string("0x"))
-    cs <- if (isPresent(prefix)) many1(hex) else many1(digit)
-    */
     maybeUnit <- optional(spacesAround(numberUnit))
-  //} yield NumberLiteral(toOption(prefix).getOrElse("") + cs.mkString, toOption(maybeUnit))
   } yield NumberLiteral(n, toOption(maybeUnit))
 
   def primaryExpression:Parser[State,ExpressionHead] = anyAttempt(List(identifierExpr, booleanLiteral, numberLiteral, stringLiteralExpr))
