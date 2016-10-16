@@ -1,5 +1,10 @@
 package com.cloakapps
 
+// Grammar based on https://github.com/ethereum/solidity/blob/develop/libsolidity/grammar.txt
+// Retrieved on 21/08/2016
+//
+// Some of the bugs are fixed. Left recursions removed.
+
 object SolidityAST
 {
   // SourceUnit = (ImportDirective | ContractDefinition)*
@@ -271,8 +276,11 @@ object SolidityAST
   sealed trait FunctionCall extends ExpressionHead
   case class FunctionCallExpr(name: Identifier, args: List[Expression]) extends FunctionCall
 
-  // 'new' Expression
-  case class NewExpression(exp: Expression) extends ExpressionHead
+  // -- original
+  // NewExpression = 'new' Identifier
+  // -- rewritten --
+  // NewExpression = 'new' Expression ( '(' (Expression ( ',' Expression )* )? ')' )?
+  case class NewExpression(exp: Expression, args:List[Expression]) extends ExpressionHead
   // 'delete' Expression
   case class DeleteExpression(exp: Expression) extends ExpressionHead
 

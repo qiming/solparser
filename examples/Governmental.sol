@@ -1,67 +1,24 @@
-package com.cloakapps
+contract Government {
 
-import com.cloakapps.SolidityAST._
-import com.cloakapps.SolParser._
-import com.cloakapps.SolParserPrimitive._
-import com.cloakapps.CommentRemover._
-import com.github.luzhuomi.scalazparsec.CharParser._
+    // Global Variables
+    uint32 public lastCreditorPayedOut;
+    uint public lastTimeOfNewCredit;
+    uint public profitFromCrash;
+    address[] public creditorAddresses;
+    uint[] public creditorAmounts;
+    address public corruptElite;
+    mapping (address => uint) buddies;
+    uint constant TWELVE_HOURS = 43200;
+    uint8 public round;
 
-object ResultPrinter {
-  def print[A](r:Result[ParseResult[State,(A,(State,List[Token]))]]) = r match {
-    case Consumed(Fail(err,(State(ln),toks))) => println(err + s"at line $ln with '" + toks.take(20).mkString+ "'")
-    case Consumed(Succ((a,(st,tokens)))) if tokens.length > 0 =>  println("Parsing incomplete.")
-    case Consumed(Succ((a,(st,tokens)))) =>  println(a.toString)
-    case Empty(Fail(err,(State(ln),toks))) => println(err + s"at line $ln with '" + toks.take(20).mkString + "'")
-    case otherwise => println(otherwise)
-  }
-}
+    function Government() {
+        // The corrupt elite establishes a new government
+        // this is the commitment of the corrupt Elite - everything that can not be saved from a crash
+        profitFromCrash = msg.value;
+        corruptElite = msg.sender;
+        lastTimeOfNewCredit = block.timestamp;
+    }
 
-object TestStrip extends App {
-  val s = List("contract // comment", 
-               "some /* other comments */", 
-               "and we have /* more", 
-               "and inside comments", 
-               " comments to strip */ until here.") 
-  val t = strip(s);
-  println(t)
-}
-
-object TestFile extends App {
-  args.foreach(file => ResultPrinter.print(parseSolFile(file)))
-}
-
-object TestPart1 extends App {
-  var s = """ 
-        if (lastTimeOfNewCredit + TWELVE_HOURS < block.timestamp) {
-            // Return money to sender
-            msg.sender.send(amount);
-            // Sends all contract money to the last creditor
-            creditorAddresses[creditorAddresses.length - 1].send(profitFromCrash);
-            corruptElite.send(this.balance);
-            // Reset contract state
-            lastCreditorPayedOut = 0;
-            lastTimeOfNewCredit = block.timestamp;
-            profitFromCrash = 0;
-            creditorAddresses = new address[](0);
-            creditorAmounts = new uint[](0);
-            round += 1;
-            return false;
-        }
-  """
-  val r = parse(ifStatement)(s)
-  ResultPrinter.print(r)
-}
-
-object TestPart2 extends App {
-  var s = """ 
-            new address[](0)
-   """
-  val r = parse(newExpression)(s)
-  ResultPrinter.print(r)
-}
-
-object TestParts extends App {
-  var s = """ 
     function lendGovernmentMoney(address buddy) returns (bool) {
         uint amount = msg.value;
         // check if the system already broke down. If for 12h no new creditor gives new credit to the system it will brake down.
@@ -116,38 +73,41 @@ object TestParts extends App {
             }
         }
     }
-"""
-  val r = parse(functionDefinition)(s)
-  ResultPrinter.print(r)
-}
 
-object TestSolParser extends App 
-{
-	val proStr = """
-contract person {
-}
-
-contract mortal {
-    address owner;
-
-    function mortal() { owner = msg.sender; }
-
-    function kill() { if (msg.sender == owner) selfdestruct(owner); }
-}
-
-contract greeter is mortal {
-    string greeting;
-
-    function greeter(string _greeting) public {
-        greeting = _greeting;
+    // fallback function
+    function() {
+        lendGovernmentMoney(0);
     }
 
-    function greet() constant returns (string) {
-        return greeting;
+    function totalDebt() returns (uint debt) {
+        for(uint i=lastCreditorPayedOut; i<creditorAmounts.length; i++){
+            debt += creditorAmounts[i];
+        }
     }
-}
-	"""
-	println(proStr)
-	val r = parseSol(proStr)
-  ResultPrinter.print(r)
+
+    function totalPayedOut() returns (uint payout) {
+        for(uint i=0; i<lastCreditorPayedOut; i++){
+            payout += creditorAmounts[i];
+        }
+    }
+
+    // better don't do it (unless you are the corrupt elite and you want to establish trust in the system)
+    function investInTheSystem() {
+        profitFromCrash += msg.value;
+    }
+
+    // From time to time the corrupt elite inherits it's power to the next generation
+    function inheritToNextGeneration(address nextGeneration) {
+        if (msg.sender == corruptElite) {
+            corruptElite = nextGeneration;
+        }
+    }
+
+    function getCreditorAddresses() returns (address[]) {
+        return creditorAddresses;
+    }
+
+    function getCreditorAmounts() returns (uint[]) {
+        return creditorAmounts;
+    }
 }

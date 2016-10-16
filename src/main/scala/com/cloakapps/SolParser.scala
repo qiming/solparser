@@ -277,7 +277,8 @@ object SolParser {
     _ <- string("new")
     _ <- whiteSpace1
     exp <- expression
-  } yield NewExpression(exp)
+    args <- functionCallArgs
+  } yield NewExpression(exp, args)
 
   def delExpression:Parser[State,ExpressionHead] = for {
     _ <- whiteSpaces
